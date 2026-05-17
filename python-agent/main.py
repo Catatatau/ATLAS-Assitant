@@ -17,11 +17,11 @@ CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers="*")
 
 # ─── MODELOS DE IA DISPONÍVEIS ────────────────────────────────────────────────
 MODELS = {
-    'qwen3.6': {
-        'id': 'qwen3.6:latest',
-        'name': 'Qwen 3 (6B)',
-        'desc': 'Modelo avançado — respostas mais inteligentes, porém mais lento.',
-        'size': '23GB'
+    'qwen3-8b': {
+        'id': 'qwen3:8b',
+        'name': 'Qwen 3 (8B)',
+        'desc': 'Modelo principal — inteligente e rápido. Melhor custo-benefício.',
+        'size': '5.2GB'
     },
     'deepseek-coder': {
         'id': 'deepseek-coder-v2:16b',
@@ -31,7 +31,7 @@ MODELS = {
     },
 }
 
-current_model = 'qwen3.6'  # Modelo padrão
+current_model = 'qwen3-8b'  # Modelo padrão
 
 os.makedirs(r'C:\jarvis-project\logs', exist_ok=True)
 logging.basicConfig(
