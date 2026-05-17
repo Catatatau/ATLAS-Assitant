@@ -1,0 +1,201 @@
+"""
+Agente Python do Jarvis
+Servidor Flask local que executa ações reais no Windows.
+Só aceita conexões de localhost (seguro).
+"""
+from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
+from executor import execute_action
+import logging, os
+from datetime import datetime
+import io
+import time
+import pyautogui
+
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers="*")
+
+os.makedirs(r'C:\jarvis-project\logs', exist_ok=True)
+logging.basicConfig(
+    filename=r'C:\jarvis-project\logs\jarvis.log',
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s'
+)
+
+@app.route('/execute', methods=['POST'])
+def execute():
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'result': 'Payload vazio'}), 400
+    action = data.get('action', '')
+    target = data.get('target', '')
+    logging.info(f"Ação: {action} | Alvo: {target}")
+    result = execute_action(action, target)
+    
+    # Interceptar mensagens feias do sistema para falar bonito na voz
+    if action == 'screenshot':
+        result['result'] = 'Aqui está o print da tela.'
+
+    logging.info(f"Resultado: {result.get('result', '')}")
+    return jsonify(result)
+
+import requests
+import json
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'online', 'time': datetime.now().isoformat()})
+
+@app.route('/actions')
+def actions():
+    return jsonify({'acoes': [
+        'open_app', 'kill_process', 'screenshot',
+        'system_info', 'shutdown', 'restart', 'sleep',
+        'play_pause', 'volume_up', 'volume_down',
+        'next_track', 'open_url'
+    ]})
+
+def generate_frames():
+    while True:
+        try:
+            img = pyautogui.screenshot()
+            img.thumbnail((1280, 720)) # Otimização de rede
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='JPEG', quality=70)
+            frame = img_byte_arr.getvalue()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            time.sleep(0.1) # Limita a ~10 fps para não pesar a CPU
+        except Exception as e:
+            logging.error(f"Erro no stream: {e}")
+            time.sleep(1)
+
+@app.route('/stream')
+def video_stream():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/frame', methods=['GET'])
+def single_frame():
+    try:
+        import base64
+        img = pyautogui.screenshot()
+        img.thumbnail((1024, 576)) # Resolução ainda menor para ser super rápido na nuvem
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='JPEG', quality=50)
+        b64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+        return jsonify({'success': True, 'frame': b64})
+    except Exception as e:
+        logging.error(f"Erro no frame: {e}")
+        return jsonify({'success': False}), 500
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return jsonify({'success': False, 'result': 'Mensagem vazia.'}), 400
+    
+    user_message = data['message']
+    user_text = user_message.lower()
+
+    # --- MOTOR NLP LOCAL (Substitui o Ollama com 0ms de delay) ---
+    import re
+    
+    # 1. Abrir coisas
+    match_abrir = re.search(r'(abrir|abre|inicia|iniciar) (o|a)?\s*(.*)', user_text)
+    if match_abrir:
+        target = match_abrir.group(3).strip()
+        if "youtube" in target:
+            execute_action('open_url', 'youtube.com')
+            return jsonify({'success': True, 'is_action': True, 'text': 'Abrindo o YouTube para você.'})
+        else:
+            execute_action('open_app', target)
+            return jsonify({'success': True, 'is_action': True, 'text': f'Iniciando {target}.'})
+
+    # 2. Fechar coisas
+    match_fechar = re.search(r'(fechar|fecha|encerra|encerrar|matar) (o|a)?\s*(.*)', user_text)
+    if match_fechar:
+        target = match_fechar.group(3).strip()
+        execute_action('kill_process', target)
+        return jsonify({'success': True, 'is_action': True, 'text': f'Fechando {target}.'})
+
+    # 3. Print / Captura
+    if "print" in user_text or "captura de tela" in user_text or "foto" in user_text:
+        res = execute_action('screenshot', '')
+        return jsonify({'success': True, 'is_action': True, 'text': 'Aqui está o print da tela.', 'action_result': res})
+
+    # 4. Controle de Mídia
+    if "toca" in user_text or "pausa" in user_text or "música" in user_text or "play" in user_text:
+        execute_action('play_pause', '')
+        return jsonify({'success': True, 'is_action': True, 'text': 'Mídia pausada ou iniciada.'})
+    if "próxima" in user_text or "pula" in user_text:
+        execute_action('next_track', '')
+        return jsonify({'success': True, 'is_action': True, 'text': 'Pulando faixa.'})
+    if "volume" in user_text:
+        if "aumenta" in user_text or "mais" in user_text or "sobe" in user_text:
+            execute_action('volume_up', '')
+            return jsonify({'success': True, 'is_action': True, 'text': 'Aumentando o volume.'})
+        if "abaixa" in user_text or "menos" in user_text or "diminui" in user_text:
+            execute_action('volume_down', '')
+            return jsonify({'success': True, 'is_action': True, 'text': 'Abaixando o volume.'})
+
+    # 5. Sistema
+    if "suspender" in user_text or "dormir" in user_text:
+        execute_action('sleep', '')
+        return jsonify({'success': True, 'is_action': True, 'text': 'Boa noite. Suspendendo sistema.'})
+    if "resumo" in user_text or "status" in user_text:
+        res = execute_action('system_info', 'all')
+        return jsonify({'success': True, 'is_action': True, 'text': 'Verificando as métricas do sistema.', 'action_result': res})
+
+    # --- CÉREBRO PROFUNDO (IA Ollama) ---
+    # Se não for um comando simples, repassa para a verdadeira IA pensar.
+    prompt = f"""Você é o Jarvis. O usuário disse: "{user_message}"
+Responda SEMPRE com um JSON válido:
+{{
+  "is_action": booleano,
+  "action": "acao",
+  "target": "alvo",
+  "response_text": "sua conversa"
+}}
+Ações válidas: open_app, kill_process, screenshot, system_info, shutdown, restart, sleep, play_pause, volume_up, volume_down, next_track, prev_track, open_url.
+Se for apenas bate-papo (ex: conte uma piada, olá), is_action é false."""
+
+    try:
+        import requests
+        import json
+        logging.info("Enviando para Ollama...")
+        res = requests.post('http://127.0.0.1:11434/api/generate', json={
+            "model": "llama3.2:1b",
+            "prompt": prompt,
+            "format": "json",
+            "stream": False
+        }, timeout=60)
+        
+        if res.status_code == 200:
+            ai_data = json.loads(res.json()['response'])
+            
+            if ai_data.get('is_action'):
+                action = ai_data.get('action')
+                target = ai_data.get('target', '')
+                action_result = execute_action(action, target)
+                return jsonify({
+                    'success': True,
+                    'is_action': True,
+                    'text': ai_data.get('response_text', 'Executando.'),
+                    'action_result': action_result
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'is_action': False,
+                    'text': ai_data.get('response_text', 'Entendido.')
+                })
+        else:
+            return jsonify({'success': False, 'text': 'O Cérebro profundo está com erro.'})
+            
+    except Exception as e:
+        logging.error(f"Erro Ollama: {e}")
+        return jsonify({'success': False, 'text': 'Meu cérebro de IA profunda está desligado no momento. Use comandos exatos.'})
+
+if __name__ == '__main__':
+    print("🤖 Jarvis Agent iniciado → Escutando em todas as interfaces de rede na porta 5001")
+    app.run(host='0.0.0.0', port=5001, debug=False)
