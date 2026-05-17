@@ -35,3 +35,9 @@ def restart_pc() -> dict:
 def sleep_pc() -> dict:
     subprocess.run('rundll32.exe powrprof.dll,SetSuspendState 0,1,0', shell=True)
     return {'success': True, 'result': '😴 Entrando em modo sleep.'}
+
+def shutdown_jarvis() -> dict:
+    subprocess.run('taskkill /F /FI "WINDOWTITLE eq Jarvis*"', shell=True)
+    subprocess.run('taskkill /F /FI "WINDOWTITLE eq Ollama*"', shell=True)
+    return {'success': True, 'result': '🔌 Desligando Jarvis e encerrando terminais...'}
+

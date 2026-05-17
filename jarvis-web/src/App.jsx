@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Mic, Send, Power, Volume2, VolumeX, Play, 
-  SkipForward, Monitor, Cpu, HardDrive, Chrome, Camera, Bot, Tv, X, Settings, Brain, ChevronDown
+  SkipForward, Monitor, Cpu, HardDrive, Chrome, Camera, Bot, Tv, X, Settings, Brain, ChevronDown, Moon, Sun
 } from 'lucide-react';
 
 function App() {
@@ -9,6 +9,10 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempApiUrl, setTempApiUrl] = useState(apiUrl);
   
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('jarvis_theme') === 'dark';
+  });
+
   const [isOnline, setIsOnline] = useState(false);
   const [isLiveScreenOpen, setIsLiveScreenOpen] = useState(false);
   const [liveFrame, setLiveFrame] = useState(null);
@@ -23,6 +27,17 @@ function App() {
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
+
+  // Dark mode effect
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('jarvis_theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('jarvis_theme', 'light');
+    }
+  }, [isDarkMode]);
 
   // Auto-scroll
   useEffect(() => {
@@ -264,6 +279,9 @@ function App() {
             <span>Jarvis Panel</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)} title="Alternar Tema" style={{ background: 'none' }}>
+              {isDarkMode ? <Sun size={20} color="var(--text-muted)" /> : <Moon size={20} color="var(--text-muted)" />}
+            </button>
             <button className="btn-icon" onClick={() => setIsSettingsOpen(true)} title="Configurações de Conexão" style={{ background: 'none' }}>
               <Settings size={20} color="var(--text-muted)" />
             </button>
@@ -344,15 +362,15 @@ function App() {
             <div className="action-section">
               <h3>Energia</h3>
               <div className="grid-buttons">
-                <button className="action-btn danger" onClick={() => executeDirectAction('sleep')}>
-                  <Power size={20} /> Suspender
+                <button className="action-btn danger" onClick={() => executeDirectAction('shutdown_jarvis')}>
+                  <Power size={20} /> Desligar Jarvis
                 </button>
               </div>
             </div>
 
             {/* Model Selector */}
             <div className="action-section model-section">
-              <h3>🧠 Modelo de IA</h3>
+              <h3>Modelo de IA</h3>
               <div className="model-selector">
                 <button 
                   className="model-current-btn" 

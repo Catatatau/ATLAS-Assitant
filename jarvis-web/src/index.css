@@ -12,6 +12,17 @@
   --bubble-system: #f0f2f5;
 }
 
+body.dark-mode {
+  --bg-color: #121212;
+  --panel-bg: #1e1e1e;
+  --panel-border: #333333;
+  --primary: #0a84ff;
+  --text-main: #e4e6eb;
+  --text-muted: #b0b3b8;
+  --bubble-user: #0a84ff;
+  --bubble-system: #333333;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
