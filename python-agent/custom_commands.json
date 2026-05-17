@@ -1,0 +1,108 @@
+{
+  "commands": [
+    {
+      "triggers": [
+        "meu jogo",
+        "joga valorant",
+        "valorant"
+      ],
+      "action": "open_app",
+      "target": "valorant",
+      "response": "Abrindo seu jogo favorito!"
+    },
+    {
+      "triggers": [
+        "abre minha playlist",
+        "minha playlist"
+      ],
+      "action": "open_url",
+      "target": "https://open.spotify.com/collection/tracks",
+      "response": "Abrindo sua playlist no Spotify."
+    },
+    {
+      "triggers": [
+        "abre meu email",
+        "meus emails",
+        "meu email"
+      ],
+      "action": "open_url",
+      "target": "https://mail.google.com",
+      "response": "Abrindo seu email."
+    },
+    {
+      "triggers": [
+        "abre o whats web",
+        "zap web",
+        "whatsapp web"
+      ],
+      "action": "open_url",
+      "target": "https://web.whatsapp.com",
+      "response": "Abrindo o WhatsApp Web."
+    },
+    {
+      "triggers": [
+        "modo trabalho",
+        "foco total"
+      ],
+      "action": "",
+      "target": "",
+      "response": "Ativando modo trabalho! Concentre-se, senhor."
+    },
+    {
+      "triggers": [
+        "abra meu site favorito"
+      ],
+      "action": "open_url",
+      "target": "https://www.xvideos.com",
+      "response": "Abrindo seu site favorito!"
+    },
+    {
+      "triggers": [
+        "acorda criança papai chegou"
+      ],
+      "action": "",
+      "target": "",
+      "response": "Bem-vindo, senhor!"
+    },
+    {
+      "triggers": [
+        "abra o youtube"
+      ],
+      "action": "open_url",
+      "target": "https://www.youtube.com/",
+      "response": "Abrindo o Youtube"
+    },
+    {
+      "triggers": [
+        "abra o tiktok"
+      ],
+      "action": "open_url",
+      "target": "https://www.tiktok.com/",
+      "response": "Abrindo o TikTok"
+    },
+    {
+      "triggers": [
+        "vamos programar"
+      ],
+      "action": "open_app",
+      "target": "Visual Studio Code",
+      "response": "Abrindo Visual Studio Code"
+    },
+    {
+      "triggers": [
+        "abra o discord"
+      ],
+      "action": "open_app",
+      "target": "discord",
+      "response": "Abindo o Discord"
+    },
+    {
+      "triggers": [
+        "abra meu jogo favorito"
+      ],
+      "action": "open_app",
+      "target": "RocketLeague",
+      "response": "Abrindo seu jogo favorito!"
+    }
+  ]
+}

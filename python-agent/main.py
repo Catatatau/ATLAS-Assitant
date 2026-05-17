@@ -1,5 +1,5 @@
 """
-Agente Python do Jarvis
+Agente Python do ATLAS
 Servidor Flask local que executa ações reais no Windows.
 Só aceita conexões de localhost (seguro).
 """
@@ -60,7 +60,8 @@ os.makedirs(r'C:\jarvis-project\logs', exist_ok=True)
 logging.basicConfig(
     filename=r'C:\jarvis-project\logs\jarvis.log',
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s'
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    encoding='utf-8'
 )
 
 @app.route('/execute', methods=['POST'])
@@ -233,7 +234,7 @@ def chat():
 
     # --- CÉREBRO PROFUNDO (IA Ollama) ---
     # Se não for um comando simples, repassa para a verdadeira IA pensar.
-    prompt = f"""Você é o Jarvis. O usuário disse: "{user_message}"
+    prompt = f"""Você é o ATLAS. O usuário disse: "{user_message}"
 Responda SEMPRE com um JSON válido:
 {{
   "is_action": booleano,
@@ -299,5 +300,5 @@ Se for apenas bate-papo (ex: conte uma piada, olá), is_action é false."""
         return jsonify({'success': False, 'text': 'Meu cérebro de IA profunda está desligado no momento. Use comandos exatos.'})
 
 if __name__ == '__main__':
-    print("🤖 Jarvis Agent iniciado → Escutando em todas as interfaces de rede na porta 5001")
+    print("ATLAS Agent iniciado -> Escutando em todas as interfaces de rede na porta 5001")
     app.run(host='0.0.0.0', port=5001, debug=False)

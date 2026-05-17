@@ -20,7 +20,7 @@ function App() {
   const [currentModel, setCurrentModel] = useState('');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [logs, setLogs] = useState([
-    { id: 1, sender: 'system', text: 'Olá, sou o Jarvis. Como posso te ajudar hoje?' }
+    { id: 1, sender: 'system', text: 'Olá, sou o ATLAS. Como posso te ajudar hoje?' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -276,7 +276,7 @@ function App() {
         <div className="sidebar-header">
           <div className="logo-container">
             <Bot size={24} color="var(--primary)" />
-            <span>Jarvis Panel</span>
+            <span>ATLAS Panel</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)} title="Alternar Tema" style={{ background: 'none' }}>
@@ -362,8 +362,8 @@ function App() {
             <div className="action-section">
               <h3>Energia</h3>
               <div className="grid-buttons">
-                <button className="action-btn danger" onClick={() => executeDirectAction('shutdown_jarvis')}>
-                  <Power size={20} /> Desligar Jarvis
+                <button className="action-btn danger" onClick={() => executeDirectAction('shutdown_atlas')}>
+                  <Power size={20} /> Desligar ATLAS
                 </button>
               </div>
             </div>
@@ -417,7 +417,7 @@ function App() {
             <Bot size={24} />
           </div>
           <div className="chat-title">
-            <h2>J.A.R.V.I.S Assistant</h2>
+            <h2>ATLAS Assistant</h2>
             <span>{isOnline ? (activeModel ? `${activeModel.name} • Pronto` : 'Pronto para ajudar') : 'Desconectado'}</span>
           </div>
         </header>

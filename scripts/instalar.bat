@@ -1,5 +1,5 @@
 @echo off
-title Instalacao do JARVIS
+title Instalacao do ATLAS
 echo Instalando tudo...
 
 echo Verificando Node.js...
