@@ -13,7 +13,30 @@ import time
 import pyautogui
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers="*")
+# Segurança: CORS restrito (Auditoria)
+CORS(app, resources={r"/*": {"origins": ["http://localhost:*", "http://127.0.0.1:*", "https://*.ngrok-free.app", "https://*.netlify.app"]}}, allow_headers="*")
+
+# --- CARREGAMENTO DE COMANDOS CUSTOMIZADOS ---
+import json
+import re
+from pathlib import Path
+
+CUSTOM_COMMANDS = []
+try:
+    with open(Path(__file__).parent / 'custom_commands.json', 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        for cmd in data.get('commands', []):
+            patterns = [re.compile(r'\b' + re.escape(t) + r'\b', re.IGNORECASE) for t in cmd['triggers']]
+            CUSTOM_COMMANDS.append({
+                'patterns': patterns,
+                'action': cmd['action'],
+                'target': cmd['target'],
+                'response': cmd['response']
+            })
+    logging.info(f"{len(CUSTOM_COMMANDS)} comandos customizados carregados com sucesso.")
+except Exception as e:
+    logging.error(f"Erro ao carregar custom_commands.json: {e}")
+
 
 # ─── MODELOS DE IA DISPONÍVEIS ────────────────────────────────────────────────
 MODELS = {
@@ -150,6 +173,17 @@ def chat():
 
     # --- MOTOR NLP LOCAL (Substitui o Ollama com 0ms de delay) ---
     import re
+    
+    # 0. Comandos Customizados (custom_commands.json)
+    for cmd in CUSTOM_COMMANDS:
+        for pattern in cmd['patterns']:
+            if pattern.search(user_text):
+                if cmd['action']:
+                    res = execute_action(cmd['action'], cmd['target'])
+                    return jsonify({'success': True, 'is_action': True, 'text': cmd['response'], 'action_result': res})
+                else:
+                    return jsonify({'success': True, 'is_action': False, 'text': cmd['response']})
+
     
     # 1. Abrir coisas
     match_abrir = re.search(r'(abrir|abre|inicia|iniciar) (o|a)?\s*(.*)', user_text)
