@@ -24,10 +24,10 @@ MODELS = {
         'size': '5.2GB'
     },
     'deepseek-coder': {
-        'id': 'deepseek-coder-v2:16b',
-        'name': 'DeepSeek Coder v2 (16B)',
-        'desc': 'Especialista em código e raciocínio técnico.',
-        'size': '8.9GB'
+        'id': 'deepseek-coder:6.7b',
+        'name': 'DeepSeek Coder (6.7B)',
+        'desc': 'Especialista em código, rápido e otimizado para sua máquina.',
+        'size': '3.8GB'
     },
 }
 
@@ -223,7 +223,23 @@ Se for apenas bate-papo (ex: conte uma piada, olá), is_action é false."""
         }, timeout=120)
         
         if res.status_code == 200:
-            ai_data = json.loads(res.json()['response'])
+            raw_response = res.json().get('response', '')
+            
+            # Limpa blockquotes de markdown se a IA retornar json formatado com ```json
+            clean_json_str = raw_response.strip()
+            if clean_json_str.startswith('```json'):
+                clean_json_str = clean_json_str[7:]
+            elif clean_json_str.startswith('```'):
+                clean_json_str = clean_json_str[3:]
+            if clean_json_str.endswith('```'):
+                clean_json_str = clean_json_str[:-3]
+            clean_json_str = clean_json_str.strip()
+
+            try:
+                ai_data = json.loads(clean_json_str)
+            except json.JSONDecodeError as err:
+                logging.error(f"Falha ao decodificar JSON da IA: {err} | Conteúdo: {raw_response}")
+                return jsonify({'success': False, 'text': 'O Cérebro profundo retornou uma resposta confusa. Tente de novo.'})
             
             if ai_data.get('is_action'):
                 action = ai_data.get('action')
@@ -242,7 +258,7 @@ Se for apenas bate-papo (ex: conte uma piada, olá), is_action é false."""
                     'text': ai_data.get('response_text', 'Entendido.')
                 })
         else:
-            return jsonify({'success': False, 'text': 'O Cérebro profundo está com erro.'})
+            return jsonify({'success': False, 'text': f'Erro no Cérebro profundo (Status {res.status_code}). O modelo pode ser pesado demais.'})
             
     except Exception as e:
         logging.error(f"Erro Ollama: {e}")
