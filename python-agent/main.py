@@ -15,6 +15,24 @@ import pyautogui
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers="*")
 
+# ─── MODELOS DE IA DISPONÍVEIS ────────────────────────────────────────────────
+MODELS = {
+    'qwen3.6': {
+        'id': 'qwen3.6:latest',
+        'name': 'Qwen 3 (6B)',
+        'desc': 'Modelo avançado — respostas mais inteligentes, porém mais lento.',
+        'size': '23GB'
+    },
+    'deepseek-coder': {
+        'id': 'deepseek-coder-v2:16b',
+        'name': 'DeepSeek Coder v2 (16B)',
+        'desc': 'Especialista em código e raciocínio técnico.',
+        'size': '8.9GB'
+    },
+}
+
+current_model = 'qwen3.6'  # Modelo padrão
+
 os.makedirs(r'C:\jarvis-project\logs', exist_ok=True)
 logging.basicConfig(
     filename=r'C:\jarvis-project\logs\jarvis.log',
@@ -44,7 +62,12 @@ import json
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'online', 'time': datetime.now().isoformat()})
+    return jsonify({
+        'status': 'online',
+        'time': datetime.now().isoformat(),
+        'current_model': current_model,
+        'model_name': MODELS.get(current_model, {}).get('name', current_model)
+    })
 
 @app.route('/actions')
 def actions():
@@ -54,6 +77,34 @@ def actions():
         'play_pause', 'volume_up', 'volume_down',
         'next_track', 'open_url'
     ]})
+
+@app.route('/models', methods=['GET'])
+def list_models():
+    """Lista todos os modelos disponíveis e qual está ativo."""
+    models_list = []
+    for key, info in MODELS.items():
+        models_list.append({
+            'key': key,
+            'id': info['id'],
+            'name': info['name'],
+            'desc': info['desc'],
+            'size': info['size'],
+            'active': key == current_model
+        })
+    return jsonify({'models': models_list, 'current': current_model})
+
+@app.route('/models/switch', methods=['POST'])
+def switch_model():
+    """Troca o modelo de IA ativo."""
+    global current_model
+    data = request.get_json()
+    model_key = data.get('model', '')
+    if model_key not in MODELS:
+        return jsonify({'success': False, 'result': f'Modelo desconhecido: {model_key}. Opções: {", ".join(MODELS.keys())}'}), 400
+    current_model = model_key
+    model_info = MODELS[current_model]
+    logging.info(f"Modelo trocado para: {model_info['name']} ({model_info['id']})")
+    return jsonify({'success': True, 'result': f'Modelo trocado para {model_info["name"]}.', 'current': current_model})
 
 def generate_frames():
     while True:
@@ -162,13 +213,14 @@ Se for apenas bate-papo (ex: conte uma piada, olá), is_action é false."""
     try:
         import requests
         import json
-        logging.info("Enviando para Ollama...")
+        model_id = MODELS[current_model]['id']
+        logging.info(f"Enviando para Ollama ({MODELS[current_model]['name']})...")
         res = requests.post('http://127.0.0.1:11434/api/generate', json={
-            "model": "llama3.2:1b",
+            "model": model_id,
             "prompt": prompt,
             "format": "json",
             "stream": False
-        }, timeout=60)
+        }, timeout=120)
         
         if res.status_code == 200:
             ai_data = json.loads(res.json()['response'])

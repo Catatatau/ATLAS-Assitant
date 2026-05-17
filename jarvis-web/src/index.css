@@ -400,3 +400,133 @@ body {
   background: var(--danger);
   color: white;
 }
+
+/* ─── Model Selector ──────────────────────────────── */
+.model-section {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 20px;
+}
+
+.model-selector {
+  position: relative;
+}
+
+.model-current-btn {
+  width: 100%;
+  background: white;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+.model-current-btn:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 10px rgba(0, 122, 255, 0.1);
+}
+
+.model-current-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model-current-info > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.model-current-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.model-current-size {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.model-chevron {
+  color: var(--text-muted);
+  transition: transform 0.25s ease;
+}
+
+.model-chevron.open {
+  transform: rotate(180deg);
+}
+
+.model-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.model-option {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.model-option:last-child {
+  border-bottom: none;
+}
+
+.model-option:hover {
+  background: #f5f8ff;
+}
+
+.model-option.active {
+  background: #eef3ff;
+  border-left: 3px solid var(--primary);
+}
+
+.model-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-option-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.model-option-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  max-width: 200px;
+}
+
+.model-option-size {
+  font-size: 0.7rem;
+  color: var(--primary);
+  font-weight: 600;
+  background: #eef3ff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}

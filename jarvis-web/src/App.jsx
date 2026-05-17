@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Mic, Send, Power, Volume2, VolumeX, Play, 
-  SkipForward, Monitor, Cpu, HardDrive, Chrome, Camera, Bot, Tv, X, Settings
+  SkipForward, Monitor, Cpu, HardDrive, Chrome, Camera, Bot, Tv, X, Settings, Brain, ChevronDown
 } from 'lucide-react';
 
 function App() {
@@ -12,6 +12,9 @@ function App() {
   const [isOnline, setIsOnline] = useState(false);
   const [isLiveScreenOpen, setIsLiveScreenOpen] = useState(false);
   const [liveFrame, setLiveFrame] = useState(null);
+  const [models, setModels] = useState([]);
+  const [currentModel, setCurrentModel] = useState('');
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [logs, setLogs] = useState([
     { id: 1, sender: 'system', text: 'Olá, sou o Jarvis. Como posso te ajudar hoje?' }
   ]);
@@ -26,7 +29,7 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  // Check health periodically
+  // Check health + fetch models periodically
   useEffect(() => {
     const checkHealth = async () => {
       try {
@@ -35,12 +38,33 @@ function App() {
             'ngrok-skip-browser-warning': 'true'
           }
         });
-        setIsOnline(res.ok);
+        if (res.ok) {
+          setIsOnline(true);
+          const data = await res.json();
+          if (data.current_model) setCurrentModel(data.current_model);
+        } else {
+          setIsOnline(false);
+        }
       } catch (e) {
         setIsOnline(false);
       }
     };
+
+    const fetchModels = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/models`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setModels(data.models);
+          setCurrentModel(data.current);
+        }
+      } catch (e) { /* silencioso */ }
+    };
+
     checkHealth();
+    fetchModels();
     const interval = setInterval(checkHealth, 5000);
     return () => clearInterval(interval);
   }, [apiUrl]);
@@ -205,6 +229,30 @@ function App() {
     return <p>{msg.text}</p>;
   };
 
+  const switchModel = async (modelKey) => {
+    try {
+      const res = await fetch(`${apiUrl}/models/switch`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify({ model: modelKey })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentModel(data.current);
+        addMessage('system', `🧠 ${data.result}`);
+        speak(data.result);
+      }
+    } catch (e) {
+      addMessage('system', 'Erro ao trocar modelo.');
+    }
+    setIsModelDropdownOpen(false);
+  };
+
+  const activeModel = models.find(m => m.key === currentModel);
+
   return (
     <div className="app-container">
       
@@ -301,6 +349,44 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {/* Model Selector */}
+            <div className="action-section model-section">
+              <h3>🧠 Modelo de IA</h3>
+              <div className="model-selector">
+                <button 
+                  className="model-current-btn" 
+                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                >
+                  <div className="model-current-info">
+                    <Brain size={18} color="var(--primary)" />
+                    <div>
+                      <span className="model-current-name">{activeModel?.name || currentModel}</span>
+                      <span className="model-current-size">{activeModel?.size || ''}</span>
+                    </div>
+                  </div>
+                  <ChevronDown size={16} className={`model-chevron ${isModelDropdownOpen ? 'open' : ''}`} />
+                </button>
+                
+                {isModelDropdownOpen && (
+                  <div className="model-dropdown">
+                    {models.map(m => (
+                      <button 
+                        key={m.key} 
+                        className={`model-option ${m.key === currentModel ? 'active' : ''}`}
+                        onClick={() => switchModel(m.key)}
+                      >
+                        <div className="model-option-info">
+                          <span className="model-option-name">{m.name}</span>
+                          <span className="model-option-desc">{m.desc}</span>
+                        </div>
+                        <span className="model-option-size">{m.size}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </aside>
@@ -314,7 +400,7 @@ function App() {
           </div>
           <div className="chat-title">
             <h2>J.A.R.V.I.S Assistant</h2>
-            <span>{isOnline ? 'Pronto para ajudar' : 'Desconectado'}</span>
+            <span>{isOnline ? (activeModel ? `${activeModel.name} • Pronto` : 'Pronto para ajudar') : 'Desconectado'}</span>
           </div>
         </header>
 
