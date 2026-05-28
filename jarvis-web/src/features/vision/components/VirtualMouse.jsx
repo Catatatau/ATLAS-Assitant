@@ -5,7 +5,7 @@ export default function VirtualMouse() {
   const { landmarks, cameraEnabled } = useVision();
   const cursorRef = useRef(null);
   const clickStateRef = useRef({
-    isPinching: false,
+    isClicking: false,
     lastClickTime: 0,
   });
 
@@ -21,13 +21,14 @@ export default function VirtualMouse() {
 
     const lm = hand.landmarks;
 
-    // Palm center = midpoint between wrist (0) and middle finger MCP (9)
-    const wrist = lm[0];
-    const middleMCP = lm[9];
-    const palmCenter = {
-      x: (wrist.x + middleMCP.x) / 2,
-      y: (wrist.y + middleMCP.y) / 2,
-    };
+    const palmAnchors = [0, 5, 9, 13, 17];
+    const palmCenter = palmAnchors.reduce((acc, idx) => {
+      acc.x += lm[idx].x;
+      acc.y += lm[idx].y;
+      return acc;
+    }, { x: 0, y: 0 });
+    palmCenter.x /= palmAnchors.length;
+    palmCenter.y /= palmAnchors.length;
 
     // Screen dimensions
     const W = window.innerWidth;
@@ -84,7 +85,8 @@ export default function VirtualMouse() {
         // Visual feedback for click
         if (cursorRef.current) {
           cursorRef.current.style.transform = `translate(${cursorX}px, ${cursorY}px) scale(0.6)`;
-          cursorRef.current.style.background = 'rgba(0, 255, 100, 0.8)';
+          cursorRef.current.style.background = 'rgba(255, 90, 70, 0.88)';
+          cursorRef.current.style.boxShadow = '0 0 24px rgba(255,90,70,0.65), inset 0 0 10px rgba(255,255,255,0.4)';
         }
 
         // 1. Hide cursor temporarily so elementFromPoint doesn't hit the cursor itself
@@ -104,7 +106,8 @@ export default function VirtualMouse() {
     } else if (!isClicking && st.isClicking) {
       st.isClicking = false;
       if (cursorRef.current) {
-        cursorRef.current.style.background = 'rgba(0, 220, 255, 0.5)';
+        cursorRef.current.style.background = 'rgba(0, 220, 255, 0.58)';
+        cursorRef.current.style.boxShadow = '0 0 18px rgba(0,220,255,0.7), inset 0 0 10px rgba(255,255,255,0.35)';
       }
     }
 
@@ -117,22 +120,22 @@ export default function VirtualMouse() {
       ref={cursorRef}
       style={{
         position: 'fixed',
-        top: -10, left: -10,
-        width: 20, height: 20,
+        top: -12, left: -12,
+        width: 24, height: 24,
         borderRadius: '50%',
-        background: 'rgba(0, 220, 255, 0.5)',
-        border: '2px solid rgba(255, 255, 255, 0.8)',
+        background: 'rgba(0, 220, 255, 0.58)',
+        border: '1px solid rgba(255, 255, 255, 0.9)',
         pointerEvents: 'none',
         zIndex: 999999,
-        transition: 'transform 0.05s linear, background 0.2s, opacity 0.2s',
+        transition: 'transform 0.05s linear, background 0.18s, opacity 0.2s, box-shadow 0.18s',
         opacity: 0,
-        boxShadow: '0 0 10px rgba(0,220,255,0.5)',
+        boxShadow: '0 0 18px rgba(0,220,255,0.7), inset 0 0 10px rgba(255,255,255,0.35)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <div style={{ width: 4, height: 4, background: '#fff', borderRadius: '50%' }} />
+      <div style={{ width: 5, height: 5, background: '#fff', borderRadius: '50%', boxShadow: '0 0 8px #fff' }} />
     </div>
   );
 }

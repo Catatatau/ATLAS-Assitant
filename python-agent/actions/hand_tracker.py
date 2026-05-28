@@ -30,6 +30,14 @@ HAND_CONNECTIONS = [
 FINGER_TIPS  = [4, 8, 12, 16, 20]
 FINGER_PIPS  = [2, 6, 10, 14, 18]
 FINGER_MCPS  = [1, 5, 9, 13, 17]
+PALM_ANCHORS = [0, 5, 9, 13, 17]
+FINGER_CHAINS = [
+    ([0, 1, 2, 3, 4], (80, 190, 255)),
+    ([0, 5, 6, 7, 8], (255, 230, 80)),
+    ([0, 9, 10, 11, 12], (120, 255, 150)),
+    ([0, 13, 14, 15, 16], (70, 210, 255)),
+    ([0, 17, 18, 19, 20], (255, 150, 220)),
+]
 
 # ─────────────────────────────────────────────
 # Thread de leitura de câmera de alta performance
@@ -66,6 +74,15 @@ class CameraReader:
 # ─────────────────────────────────────────────
 def landmark_px(lm, w, h):
     return int(lm.x * w), int(lm.y * h)
+
+def palm_center_norm(lms):
+    x = sum(lms[i].x for i in PALM_ANCHORS) / len(PALM_ANCHORS)
+    y = sum(lms[i].y for i in PALM_ANCHORS) / len(PALM_ANCHORS)
+    return x, y
+
+def palm_center_px(lms, w, h):
+    x, y = palm_center_norm(lms)
+    return int(x * w), int(y * h)
 
 def fingers_up(lms):
     result = []
@@ -133,7 +150,7 @@ def draw_3d_cube(img, center, size, angle_x, angle_y, angle_z):
     for p in projected:
         cv2.circle(img, p, 3, (0, 255, 255), -1, cv2.LINE_AA)
 
-def draw_skeleton(img, lms, is_secondary=False):
+def draw_skeleton_legacy(img, lms, is_secondary=False):
     h, w = img.shape[:2]
     overlay = img.copy()
     
@@ -183,7 +200,7 @@ def draw_skeleton(img, lms, is_secondary=False):
             pts = np.array([[px, py-3], [px+3, py], [px, py+3], [px-3, py]])
             cv2.fillPoly(img, [pts], color_joint)
 
-def draw_reticle(img, cx, cy, color, time_offset, is_clicking=False):
+def draw_reticle_legacy(img, cx, cy, color, time_offset, is_clicking=False):
     """Desenha a mira de controle do mouse com animação."""
     r = 24
     # Rotação animada das bordas
@@ -207,7 +224,7 @@ def draw_reticle(img, cx, cy, color, time_offset, is_clicking=False):
     cv2.line(img, (cx - r - length, cy), (cx - r, cy), color, 2, cv2.LINE_AA)
     cv2.line(img, (cx + r, cy), (cx + r + length, cy), color, 2, cv2.LINE_AA)
 
-def draw_hud(img, gesture_name, fps, clicking, scrolling, detected_objects=[], hand_boxes=[], drag_locked=False, hold_time=0.0):
+def draw_base_hud(img, gesture_name, fps, clicking, scrolling, detected_objects=[], hand_boxes=[]):
     h, w = img.shape[:2]
     overlay = img.copy()
     
@@ -240,15 +257,8 @@ def draw_hud(img, gesture_name, fps, clicking, scrolling, detected_objects=[], h
     cv2.putText(img, f"ATLAS SYSTEM LINK  |  FPS: {fps:3d}  |  RES: {w}x{h}", (50, 25), font, 0.5, (0, 255, 200), 1, cv2.LINE_AA)
     cv2.putText(img, f"GESTO: {gesture_name.upper()}", (50, 48), font, 0.5, (200, 220, 255), 1, cv2.LINE_AA)
 
-    if drag_locked:
-        cv2.putText(img, ">>> ARRASTO TRAVADO <<<", (w - 300, 35), font, 0.6, (255, 50, 255), 2, cv2.LINE_AA)
-    elif clicking:
-        cv2.putText(img, ">>> MODO CLIQUE <<<", (w - 250, 25), font, 0.5, (0, 100, 255), 2, cv2.LINE_AA)
-        if hold_time > 0 and hold_time < 4.0:
-            bar_w = 150
-            filled = int((hold_time / 4.0) * bar_w)
-            cv2.rectangle(img, (w - 250, 35), (w - 250 + bar_w, 42), (50, 50, 50), -1)
-            cv2.rectangle(img, (w - 250, 35), (w - 250 + filled, 42), (0, 200, 255), -1)
+    if clicking:
+        cv2.putText(img, ">>> CLIQUE ATIVO <<<", (w - 250, 35), font, 0.5, (0, 100, 255), 2, cv2.LINE_AA)
 
     if scrolling:
         cv2.putText(img, ">>> SCROLLING <<<", (w - 250, 45), font, 0.5, (255, 140, 0), 2, cv2.LINE_AA)
@@ -287,6 +297,87 @@ def draw_hud(img, gesture_name, fps, clicking, scrolling, detected_objects=[], h
         cv2.rectangle(img, (x, y - th - 8), (x + tw + 10, y), (0, 255, 150), -1)
         cv2.putText(img, label, (x + 5, y - 4), font, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
 
+def draw_skeleton(img, lms, is_secondary=False):
+    h, w = img.shape[:2]
+    alpha = 0.38 if is_secondary else 1.0
+
+    if is_secondary:
+        palm_glow = (90, 90, 90)
+        palm_core = (170, 170, 170)
+        chain_colors = [(120, 120, 120)] * len(FINGER_CHAINS)
+    else:
+        palm_glow = (255, 210, 60)
+        palm_core = (245, 255, 210)
+        chain_colors = [color for _, color in FINGER_CHAINS]
+
+    palm_pts = [landmark_px(lms[i], w, h) for i in PALM_ANCHORS]
+    palm_np = np.array(palm_pts, dtype=np.int32)
+    palm_overlay = img.copy()
+    cv2.fillPoly(palm_overlay, [palm_np], palm_glow)
+    cv2.polylines(palm_overlay, [palm_np], True, palm_core, 2, cv2.LINE_AA)
+    cv2.addWeighted(palm_overlay, 0.14 * alpha, img, 1 - (0.14 * alpha), 0, img)
+
+    for pass_width, pass_alpha in ((9, 0.16), (5, 0.24)):
+        glow = img.copy()
+        for chain_idx, (chain, _) in enumerate(FINGER_CHAINS):
+            color = chain_colors[chain_idx]
+            for a, b in zip(chain, chain[1:]):
+                ax, ay = landmark_px(lms[a], w, h)
+                bx, by = landmark_px(lms[b], w, h)
+                cv2.line(glow, (ax, ay), (bx, by), color, pass_width, cv2.LINE_AA)
+        for a, b in [(5, 9), (9, 13), (13, 17)]:
+            ax, ay = landmark_px(lms[a], w, h)
+            bx, by = landmark_px(lms[b], w, h)
+            cv2.line(glow, (ax, ay), (bx, by), palm_glow, pass_width, cv2.LINE_AA)
+        cv2.addWeighted(glow, pass_alpha * alpha, img, 1 - (pass_alpha * alpha), 0, img)
+
+    for chain_idx, (chain, _) in enumerate(FINGER_CHAINS):
+        color = chain_colors[chain_idx]
+        for a, b in zip(chain, chain[1:]):
+            ax, ay = landmark_px(lms[a], w, h)
+            bx, by = landmark_px(lms[b], w, h)
+            cv2.line(img, (ax, ay), (bx, by), color, 3 if not is_secondary else 2, cv2.LINE_AA)
+            cv2.line(img, (ax, ay), (bx, by), palm_core, 1, cv2.LINE_AA)
+
+    for i, lm in enumerate(lms):
+        px, py = landmark_px(lm, w, h)
+        color = palm_glow
+        for chain_idx, (chain, _) in enumerate(FINGER_CHAINS):
+            if i in chain:
+                color = chain_colors[chain_idx]
+                break
+        radius = 6 if i in FINGER_TIPS else 5 if i in FINGER_MCPS or i == 0 else 3
+        cv2.circle(img, (px, py), radius + 3, color, 1, cv2.LINE_AA)
+        cv2.circle(img, (px, py), radius, color, -1, cv2.LINE_AA)
+        cv2.circle(img, (px, py), max(2, radius // 2), (255, 255, 255), -1, cv2.LINE_AA)
+
+    cx, cy = palm_center_px(lms, w, h)
+    orb = img.copy()
+    cv2.circle(orb, (cx, cy), 26, palm_glow, -1, cv2.LINE_AA)
+    cv2.addWeighted(orb, 0.14 * alpha, img, 1 - (0.14 * alpha), 0, img)
+    cv2.circle(img, (cx, cy), 15, palm_glow, 2, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 7, palm_core, -1, cv2.LINE_AA)
+
+def draw_reticle(img, cx, cy, color, time_offset, is_clicking=False):
+    pulse = 0.5 + 0.5 * math.sin(time_offset * 5.0)
+    outer_r = int(24 + pulse * 5)
+    inner_r = 12 if is_clicking else 8
+
+    glow = img.copy()
+    cv2.circle(glow, (cx, cy), outer_r + 16, color, -1, cv2.LINE_AA)
+    cv2.addWeighted(glow, 0.18 if is_clicking else 0.10, img, 0.82 if is_clicking else 0.90, 0, img)
+    cv2.circle(img, (cx, cy), outer_r, color, 2, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), outer_r + 7, color, 1, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), inner_r, color, -1 if is_clicking else 2, cv2.LINE_AA)
+    cv2.circle(img, (cx, cy), 4, (255, 255, 255), -1, cv2.LINE_AA)
+
+def draw_hud(img, gesture_name, fps, clicking, scrolling, detected_objects=[], hand_boxes=[]):
+    draw_base_hud(img, gesture_name, fps, False, scrolling, detected_objects, hand_boxes)
+    if clicking:
+        h, w = img.shape[:2]
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(img, ">>> CLIQUE ATIVO <<<", (w - 250, 35), font, 0.5, (0, 100, 255), 2, cv2.LINE_AA)
+
 def classify_gesture(lms):
     fu = fingers_up(lms)
     thumb, index, middle, ring, pinky = fu
@@ -317,9 +408,6 @@ class HandTracker:
         self.thread   = None
         self.screen_w, self.screen_h = pyautogui.size()
         self.clicking  = False
-        self.drag_locked = False
-        self.was_pinching = False
-        self.pinch_start_time = 0.0
         self.scrolling = False
         self.smooth = 0.35
         self.sx, self.sy = 0, 0
@@ -431,8 +519,7 @@ class HandTracker:
 
                 stable = max(set(self._gesture_buf), key=self._gesture_buf.count)
                 
-                palm_x = (lms_main[0].x + lms_main[9].x) / 2
-                palm_y = (lms_main[0].y + lms_main[9].y) / 2
+                palm_x, palm_y = palm_center_norm(lms_main)
                 
                 class PalmCenter:
                     def __init__(self, x, y):
@@ -454,33 +541,16 @@ class HandTracker:
                         pass
 
                 is_pinching_now = (stable == "pinch_click")
-                hold_time = 0.0
-
-                if self.drag_locked:
+                if is_pinching_now:
                     is_clicking = True
-                    if is_pinching_now and not self.was_pinching:
-                        pyautogui.mouseUp(_pause=False)
-                        self.drag_locked = False
-                        self.clicking = False
+                    if not self.clicking:
+                        pyautogui.mouseDown(_pause=False)
+                        self.clicking = True
                 else:
-                    if is_pinching_now:
-                        is_clicking = True
-                        if not self.was_pinching:
-                            self.pinch_start_time = time.time()
-                            if not self.clicking:
-                                pyautogui.mouseDown(_pause=False)
-                                self.clicking = True
-                        else:
-                            hold_time = time.time() - self.pinch_start_time
-                            if hold_time >= 4.0:
-                                self.drag_locked = True
-                    else:
-                        if self.was_pinching and self.clicking:
-                            pyautogui.mouseUp(_pause=False)
-                            self.clicking = False
+                    if self.clicking:
+                        pyautogui.mouseUp(_pause=False)
+                        self.clicking = False
                             
-                self.was_pinching = is_pinching_now
-
                 if stable == "scroll":
                     is_scrolling = True
                     index_tip = lms_main[8]
@@ -518,7 +588,7 @@ class HandTracker:
                 fps_counter = 0
                 fps_timer   = time.time()
 
-            draw_hud(display, gesture_name, fps_display, is_clicking, is_scrolling, last_objects, hand_boxes, self.drag_locked, hold_time if 'hold_time' in locals() else 0.0)
+            draw_hud(display, gesture_name, fps_display, is_clicking, is_scrolling, last_objects, hand_boxes)
 
             cv2.imshow('ATLAS Vision - Controle de PC', display)
             cv2.waitKey(1)

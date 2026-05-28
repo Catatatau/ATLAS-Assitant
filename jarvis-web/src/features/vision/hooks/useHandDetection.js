@@ -31,6 +31,7 @@ const ALL_CONNECTIONS = [
   [0,17],[17,18],[18,19],[19,20],// pinky
   [5,9],[9,13],[13,17],          // palm
 ];
+const PALM_ANCHORS = [0, 5, 9, 13, 17];
 
 // Which landmark indices belong to each finger tip/segment
 const FINGER_SEGMENTS = [
@@ -75,13 +76,49 @@ const LANDMARK_SIZE = [
 
 // Two distinct color schemes for left/right hands
 const HAND_THEMES = [
-  { primary: [0, 200, 255], secondary: [0, 120, 200] },   // hand 0 - cyan
-  { primary: [255, 120, 0], secondary: [200, 60, 0] },    // hand 1 - orange
+  { primary: [0, 220, 255], secondary: [0, 140, 180], core: [230, 255, 250] },
+  { primary: [255, 170, 40], secondary: [190, 80, 20], core: [255, 245, 220] },
 ];
+
+function getPalmCenterPx(handLm, W, H) {
+  const center = PALM_ANCHORS.reduce((acc, idx) => {
+    acc.x += handLm[idx].x;
+    acc.y += handLm[idx].y;
+    return acc;
+  }, { x: 0, y: 0 });
+
+  return {
+    x: (center.x / PALM_ANCHORS.length) * W,
+    y: (center.y / PALM_ANCHORS.length) * H,
+  };
+}
 
 // Draw a single hand skeleton on a given canvas context
 function drawHandSkeleton(ctx, handLm, W, H, theme, alpha = 1) {
-  const { primary: [pr, pg, pb] } = theme;
+  const { primary: [pr, pg, pb], secondary: [sr, sg, sb], core = [255, 255, 255] } = theme;
+  const [kr, kg, kb] = core;
+  const palmCenter = getPalmCenterPx(handLm, W, H);
+  const palmPoints = PALM_ANCHORS.map((idx) => ({
+    x: handLm[idx].x * W,
+    y: handLm[idx].y * H,
+  }));
+
+  ctx.save();
+  ctx.beginPath();
+  palmPoints.forEach((pt, idx) => {
+    if (idx === 0) ctx.moveTo(pt.x, pt.y);
+    else ctx.lineTo(pt.x, pt.y);
+  });
+  ctx.closePath();
+  const palmGlow = ctx.createRadialGradient(palmCenter.x, palmCenter.y, 4, palmCenter.x, palmCenter.y, 70);
+  palmGlow.addColorStop(0, `rgba(${pr},${pg},${pb},${alpha * 0.28})`);
+  palmGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = palmGlow;
+  ctx.fill();
+  ctx.strokeStyle = `rgba(${kr},${kg},${kb},${alpha * 0.45})`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
 
   // ─── Draw connections with gradient + glow ───
   ALL_CONNECTIONS.forEach(([a, b]) => {
@@ -97,16 +134,20 @@ function drawHandSkeleton(ctx, handLm, W, H, theme, alpha = 1) {
 
     // Glow pass
     ctx.save();
-    ctx.filter = 'blur(3px)';
-    ctx.strokeStyle = `rgba(${pr},${pg},${pb},${alpha * 0.3})`;
-    ctx.lineWidth = 6;
+    ctx.filter = 'blur(4px)';
+    ctx.strokeStyle = `rgba(${sr},${sg},${sb},${alpha * 0.35})`;
+    ctx.lineWidth = 8;
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     ctx.restore();
 
     // Sharp line
     ctx.strokeStyle = grad;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+
+    ctx.strokeStyle = `rgba(${kr},${kg},${kb},${alpha * 0.7})`;
+    ctx.lineWidth = 0.8;
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
   });
 
@@ -141,6 +182,18 @@ function drawHandSkeleton(ctx, handLm, W, H, theme, alpha = 1) {
     ctx.fillStyle = `rgba(${baseColor[0]},${baseColor[1]},${baseColor[2]},${alpha * 0.8})`;
     ctx.beginPath(); ctx.arc(x, y, size * 0.3, 0, Math.PI * 2); ctx.fill();
   });
+
+  const orb = ctx.createRadialGradient(palmCenter.x, palmCenter.y, 0, palmCenter.x, palmCenter.y, 34);
+  orb.addColorStop(0, `rgba(${kr},${kg},${kb},${alpha})`);
+  orb.addColorStop(0.35, `rgba(${pr},${pg},${pb},${alpha * 0.72})`);
+  orb.addColorStop(1, `rgba(${pr},${pg},${pb},0)`);
+  ctx.fillStyle = orb;
+  ctx.beginPath(); ctx.arc(palmCenter.x, palmCenter.y, 34, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = `rgba(${kr},${kg},${kb},${alpha * 0.7})`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(palmCenter.x, palmCenter.y, 13, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = `rgba(${kr},${kg},${kb},${alpha * 0.95})`;
+  ctx.beginPath(); ctx.arc(palmCenter.x, palmCenter.y, 5, 0, Math.PI * 2); ctx.fill();
 }
 
 export default function useHandDetection(videoRef, enabled) {
