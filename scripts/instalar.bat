@@ -6,6 +6,8 @@ color 0B
 set "ROOT=%~dp0.."
 set "WEB_DIR=%ROOT%\jarvis-web"
 set "AGENT_DIR=%ROOT%\python-agent"
+set "VENV_DIR=%AGENT_DIR%\.venv"
+set "PY_EXE=%VENV_DIR%\Scripts\python.exe"
 
 echo.
 echo ==========================================
@@ -51,7 +53,7 @@ exit /b 0
 
 :check_python
 echo.
-echo [2/6] Verificando Python e PIP...
+echo [2/6] Preparando Python isolado do Agent...
 where python >nul 2>&1
 if errorlevel 1 (
   echo ERRO: Python nao encontrado.
@@ -59,13 +61,21 @@ if errorlevel 1 (
   exit /b 1
 )
 python --version
-python -m pip --version >nul 2>&1
+if not exist "%PY_EXE%" (
+  echo Criando ambiente Python em python-agent\.venv...
+  python -m venv "%VENV_DIR%"
+  if errorlevel 1 (
+    echo ERRO: Falha ao criar o ambiente virtual Python.
+    exit /b 1
+  )
+)
+"%PY_EXE%" -m pip --version >nul 2>&1
 if errorlevel 1 (
-  echo ERRO: PIP nao encontrado.
-  echo Reinstale o Python marcando a opcao pip.
+  echo ERRO: PIP nao encontrado no ambiente virtual.
   exit /b 1
 )
-python -m pip install --upgrade pip
+"%PY_EXE%" --version
+"%PY_EXE%" -m pip install --upgrade pip setuptools wheel
 exit /b 0
 
 :install_web
@@ -111,12 +121,12 @@ if not exist "%AGENT_DIR%\requirements.txt" (
   exit /b 1
 )
 cd /d "%AGENT_DIR%" || exit /b 1
-python -m pip install -r requirements.txt
+"%PY_EXE%" -m pip install -r requirements.txt
 if errorlevel 1 (
   echo ERRO: Falha ao instalar dependencias principais do Python.
   exit /b 1
 )
-python -c "import flask, flask_cors, pyautogui, psutil, keyboard, requests; print('Dependencias Python principais OK')"
+"%PY_EXE%" -c "import flask, flask_cors, pyautogui, psutil, keyboard, requests; print('Dependencias Python principais OK')"
 if errorlevel 1 (
   echo ERRO: Python ainda nao consegue importar as dependencias principais.
   exit /b 1
@@ -127,28 +137,28 @@ exit /b 0
 echo.
 echo [5/6] Instalando dependencias de visao do PC...
 cd /d "%AGENT_DIR%" || exit /b 0
-python -m pip install --upgrade numpy opencv-python
+"%PY_EXE%" -m pip install --upgrade numpy opencv-python
 if errorlevel 1 (
   echo AVISO: Nao foi possivel instalar numpy/opencv-python. A visao do PC pode ficar indisponivel.
   exit /b 0
 )
-python -c "import cv2; print('cv2 OK')"
+"%PY_EXE%" -c "import cv2; print('cv2 OK')"
 if errorlevel 1 (
   echo cv2 ainda nao importou. Tentando reinstalar opencv-python...
-  python -m pip install --upgrade --force-reinstall --no-cache-dir opencv-python
-  python -c "import cv2; print('cv2 OK')"
+  "%PY_EXE%" -m pip install --upgrade --force-reinstall --no-cache-dir opencv-python
+  "%PY_EXE%" -c "import cv2; print('cv2 OK')"
   if errorlevel 1 (
-    echo AVISO: cv2 nao foi instalado. Execute: python -m pip install opencv-python
+    echo AVISO: cv2 nao foi instalado. Execute: "%PY_EXE%" -m pip install opencv-python
     exit /b 0
   )
 )
-python -m pip install mediapipe
+"%PY_EXE%" -m pip install mediapipe
 if errorlevel 1 (
   echo AVISO: Mediapipe nao foi instalado. O chat funciona, mas gestos/camera podem ficar indisponiveis.
   echo Dica: para ATLAS Vision, prefira Python 3.10, 3.11 ou 3.12.
   exit /b 0
 )
-python -c "import mediapipe; print('mediapipe OK')"
+"%PY_EXE%" -c "import mediapipe; print('mediapipe OK')"
 if errorlevel 1 (
   echo AVISO: Mediapipe instalou, mas nao importou. Gestos/camera podem ficar indisponiveis.
 )

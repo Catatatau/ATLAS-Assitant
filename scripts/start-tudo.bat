@@ -3,6 +3,12 @@ setlocal EnableExtensions EnableDelayedExpansion
 title J.A.R.V.I.S — Cérebro Híbrido
 color 0B
 
+set "ROOT=%~dp0.."
+set "AGENT_DIR=%ROOT%\python-agent"
+set "WEB_DIR=%ROOT%\jarvis-web"
+set "VENV_DIR=%AGENT_DIR%\.venv"
+set "PY_EXE=%VENV_DIR%\Scripts\python.exe"
+
 echo.
 echo  ========================================
 echo       J . A . R . V . I . S   v3.0
@@ -10,7 +16,7 @@ echo    Multi-Model AI (Qwen 3 + DeepSeek)
 echo  ========================================
 echo.
 
-echo [1/5] Verificando dependencias Python...
+echo [1/6] Verificando dependencias Python...
 call :ensure_python_deps
 if errorlevel 1 (
   echo.
@@ -46,10 +52,10 @@ start "ATLAS Brain" cmd /k "ollama run qwen3:8b"
 timeout /t 3 /nobreak >nul
 
 echo [6/6] Iniciando Agente Python e Servidor Web...
-start "ATLAS Agent" cmd /k "cd /d ""%~dp0..\python-agent"" && python main.py"
+start "ATLAS Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" main.py"
 timeout /t 2 /nobreak >nul
 
-start "ATLAS Web UI" cmd /k "cd /d ""%~dp0..\jarvis-web"" && npm run dev"
+start "ATLAS Web UI" cmd /k "cd /d ""%WEB_DIR%"" && npm run dev"
 timeout /t 4 /nobreak >nul
 
 echo.
@@ -61,44 +67,49 @@ pause >nul
 exit /b 0
 
 :ensure_python_deps
-python --version >nul 2>&1
+where python >nul 2>&1
 if errorlevel 1 (
   echo ERRO: Python nao encontrado. Instale Python e marque "Add python.exe to PATH".
   exit /b 1
 )
-python -m pip --version >nul 2>&1
+if not exist "%PY_EXE%" (
+  echo Ambiente Python do Agent nao encontrado. Criando .venv...
+  python -m venv "%VENV_DIR%"
+  if errorlevel 1 exit /b 1
+)
+"%PY_EXE%" -m pip --version >nul 2>&1
 if errorlevel 1 (
-  echo ERRO: PIP nao encontrado. Reinstale o Python marcando a opcao pip.
+  echo ERRO: PIP nao encontrado na .venv. Execute scripts\instalar.bat.
   exit /b 1
 )
-python -c "import flask, flask_cors, pyautogui, psutil, keyboard, requests" >nul 2>&1
+"%PY_EXE%" -c "import flask, flask_cors, pyautogui, psutil, keyboard, requests" >nul 2>&1
 if %errorlevel%==0 (
   echo Dependencias Python OK.
   exit /b 0
 )
 echo Instalando dependencias Python ausentes...
-cd /d "%~dp0..\python-agent"
-python -m pip install -r requirements.txt
+cd /d "%AGENT_DIR%"
+"%PY_EXE%" -m pip install -r requirements.txt
 exit /b %errorlevel%
 
 :ensure_camera_deps
-python -c "import cv2" >nul 2>&1
+"%PY_EXE%" -c "import cv2" >nul 2>&1
 if %errorlevel%==0 (
   echo Dependencia da camera OK ^(cv2^).
   exit /b 0
 )
 echo cv2 nao encontrado. Instalando opencv-python...
-cd /d "%~dp0..\python-agent"
-python -m pip install --upgrade numpy opencv-python
+cd /d "%AGENT_DIR%"
+"%PY_EXE%" -m pip install --upgrade numpy opencv-python
 if errorlevel 1 (
   echo AVISO: nao foi possivel instalar opencv-python agora.
   echo Execute scripts\instalar.bat para instalar a camera completa.
   exit /b 0
 )
-python -c "import cv2" >nul 2>&1
+"%PY_EXE%" -c "import cv2" >nul 2>&1
 if errorlevel 1 (
   echo AVISO: opencv-python instalou, mas cv2 ainda nao importou.
-  echo Execute: python -m pip install --upgrade --force-reinstall opencv-python
+  echo Execute: "%PY_EXE%" -m pip install --upgrade --force-reinstall opencv-python
   exit /b 0
 )
 echo Dependencia da camera instalada ^(cv2^).
@@ -115,7 +126,7 @@ if errorlevel 1 (
   echo ERRO: NPM nao encontrado. Reinstale o Node.js marcando a opcao npm.
   exit /b 1
 )
-cd /d "%~dp0..\jarvis-web"
+cd /d "%WEB_DIR%"
 if not exist package.json (
   echo ERRO: package.json nao encontrado na pasta jarvis-web.
   exit /b 1

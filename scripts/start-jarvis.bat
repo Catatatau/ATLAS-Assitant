@@ -3,6 +3,11 @@ setlocal EnableExtensions EnableDelayedExpansion
 title J.A.R.V.I.S — Sistema Online
 color 0B
 
+set "ROOT=%~dp0.."
+set "AGENT_DIR=%ROOT%\python-agent"
+set "VENV_DIR=%AGENT_DIR%\.venv"
+set "PY_EXE=%VENV_DIR%\Scripts\python.exe"
+
 echo.
 echo  ========================================
 echo       J . A . R . V . I . S   v1.0
@@ -29,7 +34,7 @@ if errorlevel 1 (
 )
 
 echo [3/4] Iniciando Agente Python...
-start "Jarvis Agent" cmd /k "cd /d ""%~dp0..\python-agent"" && python main.py"
+start "Jarvis Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" main.py"
 timeout /t 2 /nobreak >nul
 
 echo [4/4] Iniciando OpenClaw Gateway...
@@ -67,24 +72,29 @@ pause
 exit /b 0
 
 :ensure_python_deps
-python --version >nul 2>&1
+where python >nul 2>&1
 if errorlevel 1 (
   echo ERRO: Python nao encontrado. Instale Python e marque "Add python.exe to PATH".
   exit /b 1
 )
-python -m pip --version >nul 2>&1
+if not exist "%PY_EXE%" (
+  echo Ambiente Python do Agent nao encontrado. Criando .venv...
+  python -m venv "%VENV_DIR%"
+  if errorlevel 1 exit /b 1
+)
+"%PY_EXE%" -m pip --version >nul 2>&1
 if errorlevel 1 (
-  echo ERRO: PIP nao encontrado. Reinstale o Python marcando a opcao pip.
+  echo ERRO: PIP nao encontrado na .venv. Execute scripts\instalar.bat.
   exit /b 1
 )
-python -c "import flask, flask_cors, pyautogui, psutil, keyboard, requests" >nul 2>&1
+"%PY_EXE%" -c "import flask, flask_cors, pyautogui, psutil, keyboard, requests" >nul 2>&1
 if %errorlevel%==0 (
   echo Dependencias Python OK.
   exit /b 0
 )
 echo Instalando dependencias Python ausentes...
-cd /d "%~dp0..\python-agent"
-python -m pip install -r requirements.txt
+cd /d "%AGENT_DIR%"
+"%PY_EXE%" -m pip install -r requirements.txt
 exit /b %errorlevel%
 
 :ensure_ollama
