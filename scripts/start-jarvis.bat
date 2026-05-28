@@ -13,11 +13,11 @@ start "" ollama serve
 timeout /t 2 /nobreak >nul
 
 echo [2/3] Iniciando Agente Python...
-start "ATLAS Agent" cmd /k "cd /d C:\jarvis-project\python-agent && python main.py"
+start "Jarvis Agent" cmd /k "cd /d ""%~dp0..\python-agent"" && python main.py"
 timeout /t 2 /nobreak >nul
 
 echo [3/3] Iniciando OpenClaw Gateway...
-start "ATLAS OpenClaw" cmd /k "openclaw gateway"
+start "Jarvis OpenClaw" cmd /k "openclaw gateway start"
 timeout /t 3 /nobreak >nul
 
 echo.
@@ -25,9 +25,9 @@ echo  Abrindo Web UI...
 start "" http://127.0.0.1:18789
 
 echo.
-echo  ATLAS Online!
+echo  JARVIS Online!
 echo  Web UI:    http://127.0.0.1:18789
 echo  Agent:     http://127.0.0.1:5001/health
-echo  Telegram:  use o bot que voce criou
+echo  Telegram:  Lembre de adicionar fdp do crlh
 echo.
 pause

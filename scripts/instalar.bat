@@ -8,11 +8,12 @@ node -v || (echo ERRO: Instale Node.js 22 em nodejs.org && pause && exit /b 1)
 echo Verificando Python...
 python --version || (echo ERRO: Instale Python em python.org && pause && exit /b 1)
 
-echo Instalando OpenClaw...
+echo Instalando OpenClaw e Ngrok...
 npm install -g openclaw@latest
+npm install -g ngrok
 
 echo Instalando dependencias Python...
-cd C:\jarvis-project\python-agent
+cd /d "%~dp0..\python-agent"
 pip install flask pyautogui psutil keyboard Pillow requests
 
 echo.

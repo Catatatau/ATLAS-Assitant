@@ -28,9 +28,10 @@ O resultado é um assistente seguro, privado, que pode tanto responder a pergunt
 ## ⚡ Principais Funcionalidades
 
 - **🧠 Inteligência Híbrida**: Um motor de Processamento de Linguagem Natural local com 0ms de delay para comandos exatos (ex: "Abrir YouTube", "Pausar música") e fallback para a IA Profunda (Ollama) em tarefas complexas.
+- **👁️ ATLAS Vision**: Visão computacional 100% on-device (via MediaPipe e TensorFlow.js) permitindo ao assistente ver o usuário, reconhecer gestos e detectar objetos em tempo real sem enviar imagens para a nuvem. Compressão de tokens otimizada pelo *Caveman Model*.
 - **🖥️ Automação de Sistema**: Integração de baixo nível com o Windows utilizando `PyAutoGUI` e comandos de shell para controlar volume, abrir softwares, tirar screenshots e verificar métricas.
 - **💬 Interface Premium React**: Um chat estilo iMessage com suporte a Dark Mode automático, design polido, e feedbacks instantâneos visuais.
-- **🔒 Privacidade & Segurança**: Processamento de IA 100% local. Inclui restrições severas de CORS para a comunicação externa e bloqueios `FAILSAFE` nas automações de tela.
+- **🔒 Privacidade & Segurança**: Processamento de IA 100% local. Inclui restrições severas de CORS para a comunicação externa e bloqueios `FAILSAFE` nas automações de tela. A câmera nunca é ativada sem permissão explícita.
 - **☁️ Remote Access Ready**: Suporte nativo ao `ngrok` e tunelamento seguro para controlar o seu computador pelo celular onde quer que você esteja.
 
 ---

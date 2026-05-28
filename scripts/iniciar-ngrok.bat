@@ -14,4 +14,5 @@ echo.
 echo Pressione qualquer tecla para gerar o seu link...
 pause >nul
 
-ngrok http 5001
+"%~dp0ngrok.exe" http 5001
+pause

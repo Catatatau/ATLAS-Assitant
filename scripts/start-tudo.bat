@@ -18,11 +18,11 @@ start "ATLAS Brain" cmd /k "ollama run qwen3:8b"
 timeout /t 3 /nobreak >nul
 
 echo [3/4] Iniciando Agente Python (Hibrido Multi-Modelo)...
-start "ATLAS Agent" cmd /k "cd /d C:\jarvis-project\python-agent && python main.py"
+start "ATLAS Agent" cmd /k "cd /d ""%~dp0..\python-agent"" && python main.py"
 timeout /t 2 /nobreak >nul
 
 echo [4/4] Iniciando Servidor Web (React)...
-start "ATLAS Web UI" cmd /k "cd /d C:\jarvis-project\jarvis-web && npm run dev"
+start "ATLAS Web UI" cmd /k "cd /d ""%~dp0..\jarvis-web"" && npm run dev"
 timeout /t 4 /nobreak >nul
 
 echo.

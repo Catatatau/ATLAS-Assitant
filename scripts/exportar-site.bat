@@ -8,7 +8,7 @@ echo ==========================================
 echo.
 echo Compilando e otimizando o site (isso pode levar alguns segundos)...
 
-cd /d C:\jarvis-project\jarvis-web
+cd /d "%~dp0..\jarvis-web"
 call npm run build
 
 echo.
@@ -28,4 +28,4 @@ echo.
 echo Pressione qualquer tecla para abrir a pasta "dist"...
 pause >nul
 
-start explorer "C:\jarvis-project\jarvis-web\dist"
+start explorer "%~dp0..\jarvis-web\dist"

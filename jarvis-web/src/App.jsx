@@ -1,17 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Mic, Send, Power, Volume2, VolumeX, Play, 
-  SkipForward, Monitor, Cpu, HardDrive, Chrome, Camera, Bot, Tv, X, Settings, Brain, ChevronDown, Moon, Sun
-} from 'lucide-react';
+import AtlasOrb from './components/AtlasOrb/AtlasOrb.jsx';
 
-function App() {
+function Ti({ name, className = '' }) {
+  return <i className={`ti ti-${name} ${className}`.trim()} aria-hidden="true" />;
+}
+
+function PanelButton({ icon, label, onClick, danger = false }) {
+  return (
+    <button
+      type="button"
+      className={`panel-btn${danger ? ' panel-btn-danger' : ''}`}
+      onClick={onClick}
+    >
+      <Ti name={icon} />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function AppContent() {
   const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('jarvis_api_url') || `http://${window.location.hostname}:5001`);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempApiUrl, setTempApiUrl] = useState(apiUrl);
-  
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('jarvis_theme') === 'dark';
-  });
 
   const [isOnline, setIsOnline] = useState(false);
   const [isLiveScreenOpen, setIsLiveScreenOpen] = useState(false);
@@ -19,39 +29,50 @@ function App() {
   const [models, setModels] = useState([]);
   const [currentModel, setCurrentModel] = useState('');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [logs, setLogs] = useState([
     { id: 1, sender: 'system', text: 'Olá, sou o ATLAS. Como posso te ajudar hoje?' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
-  
+  const [isPanelOpen, setIsPanelOpen] = useState(() => {
+    const saved = localStorage.getItem('atlas_panel_open');
+    return saved !== 'false';
+  });
+
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // Dark mode effect
-  useEffect(() => {
-    if (isDarkMode) {
-      document.body.classList.add('dark-mode');
-      localStorage.setItem('jarvis_theme', 'dark');
-    } else {
-      document.body.classList.remove('dark-mode');
-      localStorage.setItem('jarvis_theme', 'light');
-    }
-  }, [isDarkMode]);
+  const orbState = isListening ? 'listening' : isTyping ? 'responding' : 'idle';
 
-  // Auto-scroll
+  const statusText = (() => {
+    if (isListening) return 'Ouvindo...';
+    if (isTyping) return 'Processando...';
+    if (!isOnline) return 'Sistema Desconectado';
+    const active = models.find(m => m.key === currentModel);
+    return active ? `${active.name} • Conectado` : 'Sistema Conectado';
+  })();
+
+  const stateLabel = (() => {
+    if (isListening) return 'escutando';
+    if (isTyping) return 'respondendo';
+    if (!isOnline) return 'aguardando conexão';
+    return 'em espera';
+  })();
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+  }, [logs, isTyping]);
 
-  // Check health + fetch models periodically
+  useEffect(() => {
+    if (!isPanelOpen) setIsModelDropdownOpen(false);
+  }, [isPanelOpen]);
+
   useEffect(() => {
     const checkHealth = async () => {
       try {
         const res = await fetch(`${apiUrl}/health`, {
-          headers: {
-            'ngrok-skip-browser-warning': 'true'
-          }
+          headers: { 'ngrok-skip-browser-warning': 'true' }
         });
         if (res.ok) {
           setIsOnline(true);
@@ -60,7 +81,7 @@ function App() {
         } else {
           setIsOnline(false);
         }
-      } catch (e) {
+      } catch {
         setIsOnline(false);
       }
     };
@@ -75,16 +96,15 @@ function App() {
           setModels(data.models);
           setCurrentModel(data.current);
         }
-      } catch (e) { /* silencioso */ }
+      } catch { /* silencioso */ }
     };
 
     checkHealth();
     fetchModels();
-    const interval = setInterval(checkHealth, 5000);
+    const interval = setInterval(() => { checkHealth(); fetchModels(); }, 5000);
     return () => clearInterval(interval);
   }, [apiUrl]);
 
-  // Lógica da Tela ao Vivo (Bypass do Ngrok)
   useEffect(() => {
     let interval;
     if (isLiveScreenOpen) {
@@ -97,20 +117,18 @@ function App() {
           if (data.success && data.frame) {
             setLiveFrame(`data:image/jpeg;base64,${data.frame}`);
           }
-        } catch (e) {
-          console.error("Falha ao puxar tela ao vivo");
+        } catch {
+          console.error('Falha ao puxar tela ao vivo');
         }
       };
-      
-      fetchFrame(); // puxa o primeiro frame imediatamente
-      interval = setInterval(fetchFrame, 800); // puxa a cada 0.8s
+      fetchFrame();
+      interval = setInterval(fetchFrame, 800);
     } else {
       setLiveFrame(null);
     }
     return () => clearInterval(interval);
   }, [isLiveScreenOpen, apiUrl]);
 
-  // Setup Speech Recognition
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -125,18 +143,32 @@ function App() {
         handleMessageSubmit(transcript);
       };
 
+      recognitionRef.current.onerror = (event) => {
+        console.error('[ATLAS Mic] Erro:', event.error);
+        if (event.error === 'not-allowed') {
+          alert('Microfone bloqueado! Verifique: 1) Permissões do site no navegador. 2) Configurações de Privacidade do Windows (Permitir que apps acessem microfone).');
+        } else if (event.error === 'no-speech') {
+          // Ignora, apenas não detectou som
+        } else if (event.error === 'network') {
+          alert('Erro de rede: O reconhecimento de voz do navegador precisa de internet.');
+        } else {
+          alert(`Erro no microfone: ${event.error}`);
+        }
+        setIsListening(false);
+      };
+
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
     }
   }, []);
 
-  const toggleMic = () => {
+  const toggleMic = (e) => {
+    e?.stopPropagation();
     if (!recognitionRef.current) {
-      alert("Seu navegador atual não suporta o microfone por padrão. Recomendado: Google Chrome no PC ou Android.");
+      alert('Seu navegador não suporta microfone. Use Google Chrome no PC ou Android.');
       return;
     }
-
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -144,28 +176,20 @@ function App() {
       try {
         recognitionRef.current?.start();
         setIsListening(true);
-      } catch (e) {
-        console.error("Erro ao iniciar microfone", e);
+      } catch (err) {
+        console.error('Erro ao iniciar microfone', err);
       }
     }
   };
 
   const speak = (text) => {
     if (!text) return;
-    
-    // Remove tags de imagem
     let cleanText = text.replace(/\[SCREENSHOT_DATA\].*$/, '');
-    
-    // Expressão regular mágica para remover EMOJIS! 
-    // Mantém apenas Letras (\p{L}), Números (\p{N}), Pontuação (\p{P}) e Espaços (\p{Z})
     cleanText = cleanText.replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, '');
-
     if (!cleanText.trim()) return;
-    
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'pt-BR';
-    utterance.rate = 1.0;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -173,47 +197,66 @@ function App() {
     setLogs(prev => [...prev, { id: Date.now(), sender, text }]);
   };
 
-  // Enviar para o endpoint Ollama de chat
   const handleMessageSubmit = async (textToSend) => {
     if (!textToSend.trim()) return;
-    
     addMessage('user', textToSend);
     setInputValue('');
-
+    setIsTyping(true);
     try {
+      // Inject vision context if camera is active (Caveman Model output)
+      const payload = { message: textToSend };
+      if (cameraEnabled && lastVisionSummary) {
+        payload.vision_context = lastVisionSummary;
+      }
+
       const res = await fetch(`${apiUrl}/chat`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         },
-        body: JSON.stringify({ message: textToSend })
+        body: JSON.stringify(payload)
       });
-      
       const data = await res.json();
-      
       if (data.text) {
         addMessage('system', data.text);
         speak(data.text);
       }
-      
-      if (data.action_result && data.action_result.screenshot) {
+      if (data.action_result?.screenshot) {
         addMessage('system', `[SCREENSHOT_DATA]${data.action_result.screenshot}`);
       }
-
-    } catch (e) {
+    } catch {
       addMessage('system', 'Desculpe, não consegui conectar ao servidor.');
       speak('Desculpe, não consegui conectar ao servidor.');
+    } finally {
+      setIsTyping(false);
     }
   };
 
-  // Botões de Ação Direta (ignoram o LLM e vão direto pra ação pra ser mais rápido)
+  const togglePcVision = async (action) => {
+    try {
+      const res = await fetch(`${apiUrl}/vision/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      const data = await res.json();
+      addMessage('system', data.result);
+      speak(data.result);
+    } catch {
+      addMessage('system', 'Erro ao alterar visão do PC.');
+    }
+  };
+
   const executeDirectAction = async (action, target = '') => {
     addMessage('user', `Executar ação: ${action}`);
+    setIsTyping(true);
     try {
       const res = await fetch(`${apiUrl}/execute`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         },
@@ -225,8 +268,10 @@ function App() {
       if (data.screenshot) {
         addMessage('system', `[SCREENSHOT_DATA]${data.screenshot}`);
       }
-    } catch (e) {
+    } catch {
       addMessage('system', 'Erro na conexão direta.');
+    } finally {
+      setIsTyping(false);
     }
   };
 
@@ -248,7 +293,7 @@ function App() {
     try {
       const res = await fetch(`${apiUrl}/models/switch`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         },
@@ -257,253 +302,227 @@ function App() {
       const data = await res.json();
       if (data.success) {
         setCurrentModel(data.current);
-        addMessage('system', `🧠 ${data.result}`);
+        addMessage('system', data.result);
         speak(data.result);
       }
-    } catch (e) {
+    } catch {
       addMessage('system', 'Erro ao trocar modelo.');
     }
     setIsModelDropdownOpen(false);
   };
 
   const activeModel = models.find(m => m.key === currentModel);
+  const statusOnline = isOnline || isListening || isTyping;
+
+  const togglePanel = () => {
+    setIsPanelOpen((open) => {
+      const next = !open;
+      localStorage.setItem('atlas_panel_open', String(next));
+      return next;
+    });
+  };
 
   return (
-    <div className="app-container">
-      
-      {/* Sidebar - Painel Rápido */}
-      <aside className="action-sidebar">
-        <div className="sidebar-header">
-          <div className="logo-container">
-            <Bot size={24} color="var(--primary)" />
-            <span>ATLAS Panel</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button className="btn-icon" onClick={() => setIsDarkMode(!isDarkMode)} title="Alternar Tema" style={{ background: 'none' }}>
-              {isDarkMode ? <Sun size={20} color="var(--text-muted)" /> : <Moon size={20} color="var(--text-muted)" />}
-            </button>
-            <button className="btn-icon" onClick={() => setIsSettingsOpen(true)} title="Configurações de Conexão" style={{ background: 'none' }}>
-              <Settings size={20} color="var(--text-muted)" />
-            </button>
-            <div className={`status-dot ${!isOnline ? 'offline' : ''}`} title={isOnline ? 'Online' : 'Offline'} />
+    <div className={`atlas-app${isPanelOpen ? ' panel-open' : ''}`}>
+      <main className="main-area">
+        <div className="atlas-label">
+          <div className="atlas-name">ATLAS</div>
+          <div className="atlas-sub">
+            <span className={`sdot${statusOnline ? ' on' : ''}`} />
+            <span>{statusText}</span>
           </div>
         </div>
 
+        <AtlasOrb state={orbState} stateLabel={stateLabel} />
+
+        <div className="main-stack">
+          <div className="chat-history" id="chat">
+            {logs.map(msg => (
+              <div
+                key={msg.id}
+                className={msg.sender === 'user' ? 'chat-msg-user' : 'chat-msg-system'}
+              >
+                {renderMessageContent(msg)}
+              </div>
+            ))}
+            {isTyping && (
+              <div className="chat-msg-system chat-typing" aria-label="ATLAS está respondendo">
+                <span /><span /><span />
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form
+            className="message-input-form"
+            onSubmit={(e) => { e.preventDefault(); handleMessageSubmit(inputValue); }}
+          >
+            <div className="pill">
+              <button
+                type="button"
+                className={`ibtn${isListening ? ' mic-active' : ''}`}
+                onClick={toggleMic}
+                aria-label="Microfone"
+              >
+                <Ti name="microphone" />
+              </button>
+              <input
+                type="text"
+                className="message-input"
+                placeholder="Fale ou digite um comando..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+              />
+              <button type="submit" className="ibtn send" aria-label="Enviar">
+                <Ti name="send" />
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+
+      <button
+        type="button"
+        className="panel-toggle"
+        onClick={togglePanel}
+        title={isPanelOpen ? 'Ocultar controles' : 'Mostrar controles'}
+        aria-expanded={isPanelOpen}
+        aria-label={isPanelOpen ? 'Ocultar painel de controles' : 'Mostrar painel de controles'}
+      >
+        <Ti name={isPanelOpen ? 'chevron-right' : 'chevron-left'} />
+      </button>
+
+      <aside className="right-panel" aria-hidden={!isPanelOpen}>
+        <div className="rph">
+          <button type="button" className="rph-btn" onClick={() => setIsSettingsOpen(true)} title="Configurações">
+            <Ti name="adjustments-horizontal" />
+          </button>
+          <span className="rph-t">Controles</span>
+        </div>
+
         {isLiveScreenOpen ? (
-          <div className="live-stream-sidebar">
-            <div className="live-stream-header">
-              <h3><Tv size={18} color="var(--primary)" /> Tela ao Vivo</h3>
-              <button className="btn-close-inline" onClick={() => setIsLiveScreenOpen(false)} title="Fechar Visualização">
-                <X size={16} />
+          <div className="live-panel">
+            <div className="live-panel-header">
+              <span className="section-label">Tela ao Vivo</span>
+              <button type="button" className="live-close" onClick={() => setIsLiveScreenOpen(false)}>
+                <Ti name="x" />
               </button>
             </div>
             {liveFrame ? (
-              <img 
-                src={liveFrame} 
-                alt="Live Screen Stream" 
-                className="stream-image-inline"
-              />
+              <img src={liveFrame} alt="Tela ao vivo" className="live-img" />
             ) : (
-              <div className="stream-image-inline" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', color: 'gray' }}>
-                Conectando ao PC...
-              </div>
+              <p className="live-loading">Conectando ao PC...</p>
             )}
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '10px' }}>
-              Transmissão em tempo real ativa. Feche para voltar aos controles.
-            </p>
           </div>
         ) : (
-          <div className="action-sections">
-            <div className="action-section">
-              <h3>Apps & Web</h3>
-              <div className="grid-buttons">
-                <button className="action-btn" onClick={() => executeDirectAction('open_app', 'chrome')}>
-                  <Chrome size={20} /> Chrome
-                </button>
-                <button className="action-btn" onClick={() => executeDirectAction('open_url', 'youtube.com')}>
-                  <Play size={20} /> YouTube
-                </button>
-              </div>
-            </div>
+          <>
+            {/* ── ATLAS Vision section ── */}
+            <section className="panel-section">
+              <span className="section-label">Controle de Visão do PC</span>
+              <PanelButton icon="camera" label="Ligar Câmera/Gestos" onClick={() => togglePcVision('start')} />
+              <PanelButton icon="camera-off" label="Desligar Câmera" onClick={() => togglePcVision('stop')} />
+            </section>
 
-            <div className="action-section">
-              <h3>Mídia</h3>
-              <div className="grid-buttons">
-                <button className="action-btn" onClick={() => executeDirectAction('play_pause')}>
-                  <Play size={20} /> Play/Pause
-                </button>
-                <button className="action-btn" onClick={() => executeDirectAction('next_track')}>
-                  <SkipForward size={20} /> Próxima
-                </button>
-                <button className="action-btn" onClick={() => executeDirectAction('volume_up')}>
-                  <Volume2 size={20} /> Vol +
-                </button>
-                <button className="action-btn" onClick={() => executeDirectAction('volume_down')}>
-                  <VolumeX size={20} /> Vol -
-                </button>
-              </div>
-            </div>
+            <div className="vision-divider" />
 
-            <div className="action-section">
-              <h3>Sistema</h3>
-              <div className="grid-buttons">
-                <button className="action-btn" onClick={() => executeDirectAction('system_info', 'all')}>
-                  <Monitor size={20} /> Resumo
-                </button>
-                <button className="action-btn" onClick={() => executeDirectAction('screenshot')}>
-                  <Camera size={20} /> Print
-                </button>
-                <button className="action-btn" onClick={() => setIsLiveScreenOpen(true)} style={{ gridColumn: '1 / -1' }}>
-                  <Tv size={20} color="var(--primary)" /> Tela ao Vivo
-                </button>
-              </div>
-            </div>
+            <section className="panel-section">
+              <span className="section-label">Apps & Web</span>
+              <PanelButton icon="brand-chrome" label="Chrome" onClick={() => executeDirectAction('open_app', 'chrome')} />
+              <PanelButton icon="brand-youtube" label="YouTube" onClick={() => executeDirectAction('open_url', 'youtube.com')} />
+            </section>
 
-            <div className="action-section">
-              <h3>Energia</h3>
-              <div className="grid-buttons">
-                <button className="action-btn danger" onClick={() => executeDirectAction('shutdown_atlas')}>
-                  <Power size={20} /> Desligar ATLAS
-                </button>
-              </div>
-            </div>
+            <section className="panel-section">
+              <span className="section-label">Mídia</span>
+              <PanelButton icon="player-play" label="Play / Pause" onClick={() => executeDirectAction('play_pause')} />
+              <PanelButton icon="player-skip-forward" label="Próxima" onClick={() => executeDirectAction('next_track')} />
+              <PanelButton icon="volume" label="Vol +" onClick={() => executeDirectAction('volume_up')} />
+              <PanelButton icon="volume-off" label="Vol −" onClick={() => executeDirectAction('volume_down')} />
+            </section>
 
-            {/* Model Selector */}
-            <div className="action-section model-section">
-              <h3>Modelo de IA</h3>
-              <div className="model-selector">
-                <button 
-                  className="model-current-btn" 
+            <section className="panel-section">
+              <span className="section-label">Sistema</span>
+              <PanelButton icon="adjustments" label="Configurações (Ngrok)" onClick={() => setIsSettingsOpen(true)} />
+              <PanelButton icon="layout-dashboard" label="Resumo" onClick={() => executeDirectAction('system_info', 'all')} />
+              <PanelButton icon="screenshot" label="Print" onClick={() => executeDirectAction('screenshot')} />
+              <PanelButton icon="device-tv" label="Tela ao Vivo" onClick={() => setIsLiveScreenOpen(true)} />
+            </section>
+            <section className="panel-section">
+              <span className="section-label">Energia</span>
+              <PanelButton icon="power" label="Desligar Atlas" danger onClick={() => executeDirectAction('shutdown_atlas')} />
+            </section>
+
+            <section className="panel-section panel-section-model">
+              <span className="section-label">Modelo de IA</span>
+              <div className="model-select-wrap">
+                <button
+                  type="button"
+                  className="model-select-btn"
                   onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
                 >
-                  <div className="model-current-info">
-                    <Brain size={18} color="var(--primary)" />
-                    <div>
-                      <span className="model-current-name">{activeModel?.name || currentModel}</span>
-                      <span className="model-current-size">{activeModel?.size || ''}</span>
-                    </div>
-                  </div>
-                  <ChevronDown size={16} className={`model-chevron ${isModelDropdownOpen ? 'open' : ''}`} />
+                  <Ti name="brain" />
+                  <span className="model-select-label">{activeModel?.name || currentModel || 'Selecionar...'}</span>
                 </button>
-                
-                {isModelDropdownOpen && (
-                  <div className="model-dropdown">
+                {isModelDropdownOpen && models.length > 0 && (
+                  <div className="model-select-dropdown">
                     {models.map(m => (
-                      <button 
-                        key={m.key} 
-                        className={`model-option ${m.key === currentModel ? 'active' : ''}`}
+                      <button
+                        key={m.key}
+                        type="button"
+                        className={`model-select-option${m.key === currentModel ? ' active' : ''}`}
                         onClick={() => switchModel(m.key)}
                       >
-                        <div className="model-option-info">
-                          <span className="model-option-name">{m.name}</span>
-                          <span className="model-option-desc">{m.desc}</span>
-                        </div>
-                        <span className="model-option-size">{m.size}</span>
+                        <span>{m.name}</span>
+                        <span className="model-size">{m.size}</span>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </section>
+          </>
         )}
       </aside>
 
-      {/* Main Chat Area */}
-      <main className="chat-container">
-        
-        <header className="chat-header">
-          <div className="avatar">
-            <Bot size={24} />
-          </div>
-          <div className="chat-title">
-            <h2>ATLAS Assistant</h2>
-            <span>{isOnline ? (activeModel ? `${activeModel.name} • Pronto` : 'Pronto para ajudar') : 'Desconectado'}</span>
-          </div>
-        </header>
-
-        <div className="chat-messages">
-          {logs.map(msg => (
-            <div key={msg.id} className={`message-wrapper ${msg.sender}`}>
-              <div className="message-bubble">
-                {renderMessageContent(msg)}
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form 
-          className="chat-input-area" 
-          onSubmit={(e) => { e.preventDefault(); handleMessageSubmit(inputValue); }}
-        >
-          <div className="input-container">
-            <button 
-              type="button" 
-              className={`btn-icon ${isListening ? 'active-mic' : ''}`}
-              onClick={toggleMic}
-              title="Falar"
-            >
-              <Mic size={20} />
-            </button>
-            
-            <input 
-              type="text" 
-              className="chat-input"
-              placeholder="Fale ou digite um comando..." 
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-            />
-            
-            <button type="submit" className="btn-icon btn-send" title="Enviar">
-              <Send size={18} />
-            </button>
-          </div>
-        </form>
-
-      </main>
-      {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>⚙️ Configurações (Acesso Remoto)</h2>
-              <button className="btn-close" onClick={() => setIsSettingsOpen(false)}>
-                <X size={18} />
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2>Configurações</h2>
+              <button type="button" className="modal-close" onClick={() => setIsSettingsOpen(false)}>
+                <Ti name="x" />
               </button>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <p style={{ color: 'var(--text-muted)' }}>
-                Se você está acessando pela nuvem (Netlify), cole aqui o link público do seu túnel (ex: ngrok, localtunnel).
-              </p>
-              <input 
-                type="text" 
-                className="chat-input"
-                style={{ width: '100%', border: '1px solid var(--panel-border)' }}
-                value={tempApiUrl}
-                onChange={e => setTempApiUrl(e.target.value)}
-                placeholder="https://exemplo.ngrok.app"
-              />
-              <button 
-                className="action-btn"
-                style={{ background: 'var(--primary)', color: 'white', alignSelf: 'flex-start', marginTop: '10px' }}
-                onClick={() => {
-                  const cleanUrl = tempApiUrl.replace(/\/$/, ''); // Remove a barra no final se tiver
-                  setApiUrl(cleanUrl);
-                  localStorage.setItem('jarvis_api_url', cleanUrl);
-                  setIsSettingsOpen(false);
-                }}
-              >
-                Salvar Configuração
-              </button>
-            </div>
+            <p className="modal-text">
+              Acesso remoto (Netlify): cole o link do túnel (ngrok, localtunnel).
+            </p>
+            <input
+              type="text"
+              className="modal-input"
+              value={tempApiUrl}
+              onChange={e => setTempApiUrl(e.target.value)}
+              placeholder="https://exemplo.ngrok.app"
+            />
+            <button
+              type="button"
+              className="modal-save"
+              onClick={() => {
+                const cleanUrl = tempApiUrl.replace(/\/$/, '');
+                setApiUrl(cleanUrl);
+                localStorage.setItem('jarvis_api_url', cleanUrl);
+                setIsSettingsOpen(false);
+              }}
+            >
+              Salvar
+            </button>
           </div>
         </div>
       )}
-
     </div>
   );
+}
+
+function App() {
+  return <AppContent />;
 }
 
 export default App;

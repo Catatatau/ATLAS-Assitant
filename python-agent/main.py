@@ -11,10 +11,11 @@ from datetime import datetime
 import io
 import time
 import pyautogui
+from actions.hand_tracker import start_vision, stop_vision, is_vision_active
 
 app = Flask(__name__)
 # Segurança: CORS restrito (Auditoria)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:*", "http://127.0.0.1:*", "https://*.ngrok-free.app", "https://*.netlify.app"]}}, allow_headers="*")
+CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization", "ngrok-skip-browser-warning"])
 
 # --- CARREGAMENTO DE COMANDOS CUSTOMIZADOS ---
 import json
@@ -117,6 +118,20 @@ def list_models():
         })
     return jsonify({'models': models_list, 'current': current_model})
 
+@app.route('/vision/start', methods=['POST'])
+def api_start_vision():
+    success = start_vision()
+    return jsonify({'success': True, 'result': 'Visão ativada.' if success else 'Visão já estava ativa.'})
+
+@app.route('/vision/stop', methods=['POST'])
+def api_stop_vision():
+    success = stop_vision()
+    return jsonify({'success': True, 'result': 'Visão desativada.' if success else 'Visão já estava desativada.'})
+
+@app.route('/vision/status', methods=['GET'])
+def api_vision_status():
+    return jsonify({'active': is_vision_active()})
+
 @app.route('/models/switch', methods=['POST'])
 def switch_model():
     """Troca o modelo de IA ativo."""
@@ -208,6 +223,14 @@ def chat():
     if "print" in user_text or "captura de tela" in user_text or "foto" in user_text:
         res = execute_action('screenshot', '')
         return jsonify({'success': True, 'is_action': True, 'text': 'Aqui está o print da tela.', 'action_result': res})
+
+    # 3.5. Visão
+    if "ativar visão" in user_text or "ligar câmera" in user_text:
+        start_vision()
+        return jsonify({'success': True, 'is_action': True, 'text': 'Câmera e controle por gestos ativados.'})
+    if "desativar visão" in user_text or "desligar câmera" in user_text:
+        stop_vision()
+        return jsonify({'success': True, 'is_action': True, 'text': 'Câmera desligada.'})
 
     # 4. Controle de Mídia
     if "toca" in user_text or "pausa" in user_text or "música" in user_text or "play" in user_text:

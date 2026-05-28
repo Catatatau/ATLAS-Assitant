@@ -103,6 +103,14 @@
       "action": "open_app",
       "target": "RocketLeague",
       "response": "Abrindo seu jogo favorito!"
+    },
+    {
+      "triggers": [
+        "acorda criança papai chegou!"
+      ],
+      "action": "open_url",
+      "target": "https://open.spotify.com/intl-pt/track/39shmbIHICJ2Wxnk1fPSdz?nd=1&dlsi=564b86c47eee4190",
+      "response": "Bem-Vindo De volta Senhor!"
     }
   ]
 }
