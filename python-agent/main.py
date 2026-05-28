@@ -11,7 +11,21 @@ from datetime import datetime
 import io
 import time
 import pyautogui
-from actions.hand_tracker import start_vision, stop_vision, is_vision_active
+
+VISION_IMPORT_ERROR = None
+try:
+    from actions.hand_tracker import start_vision, stop_vision, is_vision_active
+except Exception as exc:
+    VISION_IMPORT_ERROR = exc
+
+    def start_vision():
+        return False
+
+    def stop_vision():
+        return False
+
+    def is_vision_active():
+        return False
 
 app = Flask(__name__)
 # Segurança: CORS restrito (Auditoria)
@@ -121,17 +135,31 @@ def list_models():
 
 @app.route('/vision/start', methods=['POST'])
 def api_start_vision():
+    if VISION_IMPORT_ERROR:
+        return jsonify({
+            'success': False,
+            'result': f'Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}).'
+        }), 503
     success = start_vision()
     return jsonify({'success': True, 'result': 'Visão ativada.' if success else 'Visão já estava ativa.'})
 
 @app.route('/vision/stop', methods=['POST'])
 def api_stop_vision():
+    if VISION_IMPORT_ERROR:
+        return jsonify({
+            'success': False,
+            'result': f'Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}).'
+        }), 503
     success = stop_vision()
     return jsonify({'success': True, 'result': 'Visão desativada.' if success else 'Visão já estava desativada.'})
 
 @app.route('/vision/status', methods=['GET'])
 def api_vision_status():
-    return jsonify({'active': is_vision_active()})
+    return jsonify({
+        'active': is_vision_active(),
+        'available': VISION_IMPORT_ERROR is None,
+        'error': str(VISION_IMPORT_ERROR) if VISION_IMPORT_ERROR else None
+    })
 
 @app.route('/models/switch', methods=['POST'])
 def switch_model():

@@ -18,8 +18,15 @@ function PanelButton({ icon, label, onClick, danger = false }) {
   );
 }
 
+const isLocalWebHost = () => ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
+const getDefaultApiUrl = () => {
+  if (isLocalWebHost()) return 'http://127.0.0.1:5001';
+  return `http://${window.location.hostname}:5001`;
+};
+
 function AppContent() {
-  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('jarvis_api_url') || `http://${window.location.hostname}:5001`);
+  const [apiUrl, setApiUrl] = useState(() => localStorage.getItem('jarvis_api_url') || getDefaultApiUrl());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempApiUrl, setTempApiUrl] = useState(apiUrl);
 
@@ -82,6 +89,22 @@ function AppContent() {
           setIsOnline(false);
         }
       } catch {
+        const fallbackUrl = getDefaultApiUrl();
+        if (isLocalWebHost() && apiUrl !== fallbackUrl) {
+          try {
+            const res = await fetch(`${fallbackUrl}/health`, {
+              headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setApiUrl(fallbackUrl);
+              localStorage.setItem('jarvis_api_url', fallbackUrl);
+              setIsOnline(true);
+              if (data.current_model) setCurrentModel(data.current_model);
+              return;
+            }
+          } catch { /* usa estado offline abaixo */ }
+        }
         setIsOnline(false);
       }
     };
@@ -203,11 +226,7 @@ function AppContent() {
     setInputValue('');
     setIsTyping(true);
     try {
-      // Inject vision context if camera is active (Caveman Model output)
       const payload = { message: textToSend };
-      if (cameraEnabled && lastVisionSummary) {
-        payload.vision_context = lastVisionSummary;
-      }
 
       const res = await fetch(`${apiUrl}/chat`, {
         method: 'POST',

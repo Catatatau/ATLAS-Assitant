@@ -14,7 +14,8 @@ npm install -g ngrok
 
 echo Instalando dependencias Python...
 cd /d "%~dp0..\python-agent"
-pip install flask pyautogui psutil keyboard Pillow requests
+pip install flask flask-cors pyautogui psutil keyboard Pillow requests
+pip install numpy opencv-python mediapipe || echo AVISO: dependencias de visao nao instaladas. O chat continua funcionando; use Python 3.10-3.12 para ATLAS Vision.
 
 echo.
 echo CONCLUIDO! Execute scripts\start-jarvis.bat para iniciar.
