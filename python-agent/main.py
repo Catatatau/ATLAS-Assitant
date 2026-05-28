@@ -43,19 +43,57 @@ import time
 import pyautogui
 
 VISION_IMPORT_ERROR = None
-try:
-    from actions.hand_tracker import start_vision, stop_vision, is_vision_active
-except Exception as exc:
-    VISION_IMPORT_ERROR = exc
+VISION_INSTALL_ATTEMPTED = False
 
-    def start_vision():
+
+def start_vision():
+    return False
+
+
+def stop_vision():
+    return False
+
+
+def is_vision_active():
+    return False
+
+
+def load_vision():
+    global VISION_IMPORT_ERROR, start_vision, stop_vision, is_vision_active
+    sys.modules.pop('actions.hand_tracker', None)
+    try:
+        vision_module = importlib.import_module('actions.hand_tracker')
+    except Exception as exc:
+        VISION_IMPORT_ERROR = exc
         return False
 
-    def stop_vision():
+    start_vision = vision_module.start_vision
+    stop_vision = vision_module.stop_vision
+    is_vision_active = vision_module.is_vision_active
+    VISION_IMPORT_ERROR = None
+    return True
+
+
+def ensure_vision_ready():
+    global VISION_INSTALL_ATTEMPTED
+    if load_vision():
+        return True
+    if VISION_INSTALL_ATTEMPTED:
         return False
 
-    def is_vision_active():
+    VISION_INSTALL_ATTEMPTED = True
+    print(f"ATLAS Vision: instalando dependencias ausentes ({VISION_IMPORT_ERROR})")
+    try:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'numpy', 'opencv-python'])
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'mediapipe'])
+    except Exception as exc:
+        VISION_IMPORT_ERROR = exc
         return False
+    importlib.invalidate_caches()
+    return load_vision()
+
+
+load_vision()
 
 app = Flask(__name__)
 # Segurança: CORS restrito (Auditoria)
@@ -165,7 +203,7 @@ def list_models():
 
 @app.route('/vision/start', methods=['POST'])
 def api_start_vision():
-    if VISION_IMPORT_ERROR:
+    if not ensure_vision_ready():
         return jsonify({
             'success': False,
             'result': f'Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}).'
@@ -285,6 +323,8 @@ def chat():
 
     # 3.5. Visão
     if "ativar visão" in user_text or "ligar câmera" in user_text:
+        if not ensure_vision_ready():
+            return jsonify({'success': False, 'is_action': False, 'text': f'Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}).'})
         start_vision()
         return jsonify({'success': True, 'is_action': True, 'text': 'Câmera e controle por gestos ativados.'})
     if "desativar visão" in user_text or "desligar câmera" in user_text:

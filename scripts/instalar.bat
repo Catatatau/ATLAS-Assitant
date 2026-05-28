@@ -127,16 +127,30 @@ exit /b 0
 echo.
 echo [5/6] Instalando dependencias de visao do PC...
 cd /d "%AGENT_DIR%" || exit /b 0
-python -m pip install numpy opencv-python
+python -m pip install --upgrade numpy opencv-python
 if errorlevel 1 (
   echo AVISO: Nao foi possivel instalar numpy/opencv-python. A visao do PC pode ficar indisponivel.
   exit /b 0
+)
+python -c "import cv2; print('cv2 OK')"
+if errorlevel 1 (
+  echo cv2 ainda nao importou. Tentando reinstalar opencv-python...
+  python -m pip install --upgrade --force-reinstall --no-cache-dir opencv-python
+  python -c "import cv2; print('cv2 OK')"
+  if errorlevel 1 (
+    echo AVISO: cv2 nao foi instalado. Execute: python -m pip install opencv-python
+    exit /b 0
+  )
 )
 python -m pip install mediapipe
 if errorlevel 1 (
   echo AVISO: Mediapipe nao foi instalado. O chat funciona, mas gestos/camera podem ficar indisponiveis.
   echo Dica: para ATLAS Vision, prefira Python 3.10, 3.11 ou 3.12.
   exit /b 0
+)
+python -c "import mediapipe; print('mediapipe OK')"
+if errorlevel 1 (
+  echo AVISO: Mediapipe instalou, mas nao importou. Gestos/camera podem ficar indisponiveis.
 )
 exit /b 0
 
