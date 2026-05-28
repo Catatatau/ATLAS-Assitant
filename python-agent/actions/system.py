@@ -1,5 +1,16 @@
 import psutil, subprocess
 
+
+def kill_port(port: int):
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            for conn in proc.net_connections(kind='inet'):
+                if conn.status == psutil.CONN_LISTEN and conn.laddr and conn.laddr.port == port:
+                    proc.kill()
+                    break
+        except (psutil.AccessDenied, psutil.NoSuchProcess):
+            continue
+
 def get_system_info(target: str = 'all') -> dict:
     ram   = psutil.virtual_memory()
     cpu   = psutil.cpu_percent(interval=1)
@@ -37,8 +48,9 @@ def sleep_pc() -> dict:
     return {'success': True, 'result': '😴 Entrando em modo sleep.'}
 
 def shutdown_atlas() -> dict:
+    kill_port(5001)
+    kill_port(5173)
     subprocess.run('taskkill /F /FI "WINDOWTITLE eq Atlas*"', shell=True)
     subprocess.run('taskkill /F /FI "WINDOWTITLE eq Jarvis*"', shell=True)
     subprocess.run('taskkill /F /FI "WINDOWTITLE eq Ollama*"', shell=True)
     return {'success': True, 'result': '🔌 Desligando ATLAS e encerrando terminais...'}
-

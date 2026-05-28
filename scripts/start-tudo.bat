@@ -27,6 +27,13 @@ if errorlevel 1 (
 
 echo [2/6] Verificando dependencia da camera...
 call :ensure_camera_deps
+if errorlevel 1 (
+  echo.
+  echo ERRO: nao foi possivel preparar a camera/gestos.
+  echo Execute scripts\instalar.bat e confirme que aparece "cv2 OK" e "mediapipe OK".
+  pause
+  exit /b 1
+)
 
 echo [3/6] Verificando dependencias do site...
 call :ensure_web_deps
@@ -52,9 +59,11 @@ start "ATLAS Brain" cmd /k "ollama run qwen3:8b"
 timeout /t 3 /nobreak >nul
 
 echo [6/6] Iniciando Agente Python e Servidor Web...
+call :free_port 5001 "ATLAS Agent antigo"
 start "ATLAS Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" main.py"
 timeout /t 2 /nobreak >nul
 
+call :free_port 5173 "ATLAS Web antigo"
 start "ATLAS Web UI" cmd /k "cd /d ""%WEB_DIR%"" && npm run dev"
 timeout /t 4 /nobreak >nul
 
@@ -64,6 +73,18 @@ echo  Troque o modelo pelo painel lateral da Web UI.
 echo.
 pause >nul
 
+exit /b 0
+
+:free_port
+set "TARGET_PORT=%~1"
+set "TARGET_NAME=%~2"
+set "PORT_PID="
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%TARGET_PORT% .*LISTENING"') do set "PORT_PID=%%P"
+if defined PORT_PID (
+  echo Encerrando %TARGET_NAME% na porta %TARGET_PORT% ^(PID %PORT_PID%^)...
+  taskkill /F /PID %PORT_PID% >nul 2>&1
+  timeout /t 1 /nobreak >nul
+)
 exit /b 0
 
 :ensure_python_deps
@@ -93,26 +114,28 @@ cd /d "%AGENT_DIR%"
 exit /b %errorlevel%
 
 :ensure_camera_deps
-"%PY_EXE%" -c "import cv2" >nul 2>&1
+"%PY_EXE%" -c "import cv2, mediapipe" >nul 2>&1
 if %errorlevel%==0 (
-  echo Dependencia da camera OK ^(cv2^).
+  echo Dependencias da camera OK ^(cv2 + mediapipe^).
   exit /b 0
 )
-echo cv2 nao encontrado. Instalando opencv-python...
+echo Dependencias da camera ausentes. Instalando opencv-python e mediapipe...
 cd /d "%AGENT_DIR%"
-"%PY_EXE%" -m pip install --upgrade numpy opencv-python
+"%PY_EXE%" -m pip install --upgrade numpy opencv-python mediapipe
 if errorlevel 1 (
-  echo AVISO: nao foi possivel instalar opencv-python agora.
-  echo Execute scripts\instalar.bat para instalar a camera completa.
-  exit /b 0
+  echo ERRO: nao foi possivel instalar dependencias da camera agora.
+  exit /b 1
 )
-"%PY_EXE%" -c "import cv2" >nul 2>&1
+"%PY_EXE%" -c "import cv2, mediapipe" >nul 2>&1
 if errorlevel 1 (
-  echo AVISO: opencv-python instalou, mas cv2 ainda nao importou.
-  echo Execute: "%PY_EXE%" -m pip install --upgrade --force-reinstall opencv-python
-  exit /b 0
+  echo ERRO: camera instalou, mas cv2/mediapipe ainda nao importou.
+  echo Python usado pelo Agent:
+  "%PY_EXE%" -c "import sys; print(sys.executable)"
+  echo Tente:
+  echo "%PY_EXE%" -m pip install --upgrade --force-reinstall opencv-python mediapipe
+  exit /b 1
 )
-echo Dependencia da camera instalada ^(cv2^).
+echo Dependencias da camera instaladas ^(cv2 + mediapipe^).
 exit /b 0
 
 :ensure_web_deps

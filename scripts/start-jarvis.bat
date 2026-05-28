@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-title J.A.R.V.I.S — Sistema Online
+title J.A.R.V.I.S - Sistema Online
 color 0B
 
 set "ROOT=%~dp0.."
@@ -14,7 +14,7 @@ echo       J . A . R . V . I . S   v1.0
 echo  ========================================
 echo.
 
-echo [1/4] Verificando dependencias Python...
+echo [1/5] Verificando dependencias Python...
 call :ensure_python_deps
 if errorlevel 1 (
   echo.
@@ -23,7 +23,17 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [2/4] Verificando Ollama...
+echo [2/5] Verificando dependencia da camera...
+call :ensure_camera_deps
+if errorlevel 1 (
+  echo.
+  echo ERRO: nao foi possivel preparar a camera/gestos.
+  echo Execute scripts\instalar.bat e confirme que aparece "cv2 OK" e "mediapipe OK".
+  pause
+  exit /b 1
+)
+
+echo [3/5] Verificando Ollama...
 call :ensure_ollama
 if errorlevel 1 (
   echo.
@@ -33,11 +43,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [3/4] Iniciando Agente Python...
+echo [4/5] Iniciando Agente Python...
+call :free_port 5001 "Jarvis Agent antigo"
 start "Jarvis Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" main.py"
 timeout /t 2 /nobreak >nul
 
-echo [4/4] Iniciando OpenClaw Gateway...
+echo [5/5] Iniciando OpenClaw Gateway...
 where openclaw >nul 2>&1
 if errorlevel 1 (
   echo OpenClaw nao encontrado. Instalando...
@@ -47,7 +58,7 @@ if errorlevel 1 (
     pause
     exit /b 1
   )
-  call npm install -g openclaw@latest
+  call npm install -g openclaw@latest --no-audit --no-fund
   if errorlevel 1 (
     echo ERRO: Falha ao instalar OpenClaw.
     pause
@@ -65,10 +76,21 @@ echo.
 echo  JARVIS Online!
 echo  Web UI:    http://127.0.0.1:18789
 echo  Agent:     http://127.0.0.1:5001/health
-echo  Telegram:  Lembre de adicionar fdp do crlh
 echo.
 pause
 
+exit /b 0
+
+:free_port
+set "TARGET_PORT=%~1"
+set "TARGET_NAME=%~2"
+set "PORT_PID="
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%TARGET_PORT% .*LISTENING"') do set "PORT_PID=%%P"
+if defined PORT_PID (
+  echo Encerrando %TARGET_NAME% na porta %TARGET_PORT% ^(PID %PORT_PID%^)...
+  taskkill /F /PID %PORT_PID% >nul 2>&1
+  timeout /t 1 /nobreak >nul
+)
 exit /b 0
 
 :ensure_python_deps
@@ -96,6 +118,31 @@ echo Instalando dependencias Python ausentes...
 cd /d "%AGENT_DIR%"
 "%PY_EXE%" -m pip install -r requirements.txt
 exit /b %errorlevel%
+
+:ensure_camera_deps
+"%PY_EXE%" -c "import cv2, mediapipe" >nul 2>&1
+if %errorlevel%==0 (
+  echo Dependencias da camera OK ^(cv2 + mediapipe^).
+  exit /b 0
+)
+echo Dependencias da camera ausentes. Instalando opencv-python e mediapipe...
+cd /d "%AGENT_DIR%"
+"%PY_EXE%" -m pip install --upgrade numpy opencv-python mediapipe
+if errorlevel 1 (
+  echo ERRO: nao foi possivel instalar dependencias da camera agora.
+  exit /b 1
+)
+"%PY_EXE%" -c "import cv2, mediapipe" >nul 2>&1
+if errorlevel 1 (
+  echo ERRO: camera instalou, mas cv2/mediapipe ainda nao importou.
+  echo Python usado pelo Agent:
+  "%PY_EXE%" -c "import sys; print(sys.executable)"
+  echo Tente:
+  echo "%PY_EXE%" -m pip install --upgrade --force-reinstall opencv-python mediapipe
+  exit /b 1
+)
+echo Dependencias da camera instaladas ^(cv2 + mediapipe^).
+exit /b 0
 
 :ensure_ollama
 where ollama >nul 2>&1

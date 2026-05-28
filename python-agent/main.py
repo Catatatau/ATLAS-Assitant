@@ -93,6 +93,14 @@ def ensure_vision_ready():
     return load_vision()
 
 
+def vision_error_text():
+    return (
+        f"Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}). "
+        f"Python do Agent: {sys.executable}. "
+        "Feche as janelas antigas do ATLAS Agent, rode scripts\\instalar.bat e depois scripts\\start-tudo.bat."
+    )
+
+
 load_vision()
 
 app = Flask(__name__)
@@ -174,7 +182,10 @@ def health():
         'status': 'online',
         'time': datetime.now().isoformat(),
         'current_model': current_model,
-        'model_name': MODELS.get(current_model, {}).get('name', current_model)
+        'model_name': MODELS.get(current_model, {}).get('name', current_model),
+        'python': sys.executable,
+        'vision_available': VISION_IMPORT_ERROR is None,
+        'vision_error': str(VISION_IMPORT_ERROR) if VISION_IMPORT_ERROR else None
     })
 
 @app.route('/actions')
@@ -206,7 +217,7 @@ def api_start_vision():
     if not ensure_vision_ready():
         return jsonify({
             'success': False,
-            'result': f'Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}).'
+            'result': vision_error_text()
         }), 503
     success = start_vision()
     return jsonify({'success': True, 'result': 'Visão ativada.' if success else 'Visão já estava ativa.'})
@@ -216,7 +227,7 @@ def api_stop_vision():
     if VISION_IMPORT_ERROR:
         return jsonify({
             'success': False,
-            'result': f'Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}).'
+            'result': vision_error_text()
         }), 503
     success = stop_vision()
     return jsonify({'success': True, 'result': 'Visão desativada.' if success else 'Visão já estava desativada.'})
@@ -226,7 +237,8 @@ def api_vision_status():
     return jsonify({
         'active': is_vision_active(),
         'available': VISION_IMPORT_ERROR is None,
-        'error': str(VISION_IMPORT_ERROR) if VISION_IMPORT_ERROR else None
+        'error': str(VISION_IMPORT_ERROR) if VISION_IMPORT_ERROR else None,
+        'python': sys.executable
     })
 
 @app.route('/models/switch', methods=['POST'])
@@ -324,7 +336,7 @@ def chat():
     # 3.5. Visão
     if "ativar visão" in user_text or "ligar câmera" in user_text:
         if not ensure_vision_ready():
-            return jsonify({'success': False, 'is_action': False, 'text': f'Visao do PC indisponivel: dependencia ausente ({VISION_IMPORT_ERROR}).'})
+            return jsonify({'success': False, 'is_action': False, 'text': vision_error_text()})
         start_vision()
         return jsonify({'success': True, 'is_action': True, 'text': 'Câmera e controle por gestos ativados.'})
     if "desativar visão" in user_text or "desligar câmera" in user_text:
