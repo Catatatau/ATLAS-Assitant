@@ -57,9 +57,10 @@ MODELS = {
 
 current_model = 'qwen3-8b'  # Modelo padrão
 
-os.makedirs(r'C:\jarvis-project\logs', exist_ok=True)
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
 logging.basicConfig(
-    filename=r'C:\jarvis-project\logs\jarvis.log',
+    filename=os.path.join(LOG_DIR, 'jarvis.log'),
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     encoding='utf-8'
