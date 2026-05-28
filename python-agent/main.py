@@ -3,6 +3,36 @@ Agente Python do ATLAS
 Servidor Flask local que executa ações reais no Windows.
 Só aceita conexões de localhost (seguro).
 """
+import importlib.util
+import subprocess
+import sys
+
+
+def ensure_core_dependencies():
+    required = {
+        'flask': 'flask',
+        'flask_cors': 'flask-cors',
+        'keyboard': 'keyboard',
+        'PIL': 'Pillow',
+        'psutil': 'psutil',
+        'pyautogui': 'pyautogui',
+        'requests': 'requests',
+    }
+    missing = [package for module, package in required.items() if importlib.util.find_spec(module) is None]
+    if not missing:
+        return
+
+    print(f"ATLAS Agent: instalando dependencias ausentes: {', '.join(missing)}")
+    try:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', *missing])
+    except Exception as exc:
+        print(f"ERRO: falha ao instalar dependencias Python: {exc}")
+        print("Execute scripts\\instalar.bat e tente novamente.")
+        sys.exit(1)
+
+
+ensure_core_dependencies()
+
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from executor import execute_action

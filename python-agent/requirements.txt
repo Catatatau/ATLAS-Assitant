@@ -1,0 +1,7 @@
+flask
+flask-cors
+keyboard
+Pillow
+psutil
+pyautogui
+requests

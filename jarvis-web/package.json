@@ -4,9 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/ensure-deps.cjs",
     "dev": "vite",
+    "predev:https": "node scripts/ensure-deps.cjs",
     "dev:https": "vite --mode https",
+    "prebuild": "node scripts/ensure-deps.cjs",
     "build": "vite build",
+    "prepreview": "node scripts/ensure-deps.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

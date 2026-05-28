@@ -30,7 +30,7 @@ if errorlevel 1 (
 
 echo Instalando dependencias Python...
 cd /d "%~dp0..\python-agent"
-python -m pip install flask flask-cors pyautogui psutil keyboard Pillow requests
+python -m pip install -r requirements.txt
 if errorlevel 1 (
   echo ERRO: Falha ao instalar dependencias Python principais.
   pause
@@ -38,7 +38,7 @@ if errorlevel 1 (
 )
 
 echo Instalando dependencias de visao do PC...
-python -m pip install numpy opencv-python mediapipe || echo AVISO: dependencias de visao nao instaladas. O chat continua funcionando; use Python 3.10-3.12 para ATLAS Vision.
+python -m pip install -r requirements-vision.txt || echo AVISO: dependencias de visao nao instaladas. O chat continua funcionando; use Python 3.10-3.12 para ATLAS Vision.
 
 echo.
 echo CONCLUIDO! Execute scripts\start-jarvis.bat para iniciar.

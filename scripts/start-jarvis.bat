@@ -9,7 +9,16 @@ echo       J . A . R . V . I . S   v1.0
 echo  ========================================
 echo.
 
-echo [1/3] Verificando Ollama...
+echo [1/4] Verificando dependencias Python...
+call :ensure_python_deps
+if errorlevel 1 (
+  echo.
+  echo ERRO: nao foi possivel preparar as dependencias Python.
+  pause
+  exit /b 1
+)
+
+echo [2/4] Verificando Ollama...
 call :ensure_ollama
 if errorlevel 1 (
   echo.
@@ -19,11 +28,27 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [2/3] Iniciando Agente Python...
+echo [3/4] Iniciando Agente Python...
 start "Jarvis Agent" cmd /k "cd /d ""%~dp0..\python-agent"" && python main.py"
 timeout /t 2 /nobreak >nul
 
-echo [3/3] Iniciando OpenClaw Gateway...
+echo [4/4] Iniciando OpenClaw Gateway...
+where openclaw >nul 2>&1
+if errorlevel 1 (
+  echo OpenClaw nao encontrado. Instalando...
+  npm -v >nul 2>&1
+  if errorlevel 1 (
+    echo ERRO: NPM nao encontrado. Reinstale o Node.js marcando a opcao npm.
+    pause
+    exit /b 1
+  )
+  call npm install -g openclaw@latest
+  if errorlevel 1 (
+    echo ERRO: Falha ao instalar OpenClaw.
+    pause
+    exit /b 1
+  )
+)
 start "Jarvis OpenClaw" cmd /k "openclaw gateway start"
 timeout /t 3 /nobreak >nul
 
@@ -41,7 +66,33 @@ pause
 
 exit /b 0
 
+:ensure_python_deps
+python --version >nul 2>&1
+if errorlevel 1 (
+  echo ERRO: Python nao encontrado. Instale Python e marque "Add python.exe to PATH".
+  exit /b 1
+)
+python -m pip --version >nul 2>&1
+if errorlevel 1 (
+  echo ERRO: PIP nao encontrado. Reinstale o Python marcando a opcao pip.
+  exit /b 1
+)
+python -c "import flask, flask_cors, pyautogui, psutil, keyboard, requests" >nul 2>&1
+if %errorlevel%==0 (
+  echo Dependencias Python OK.
+  exit /b 0
+)
+echo Instalando dependencias Python ausentes...
+cd /d "%~dp0..\python-agent"
+python -m pip install -r requirements.txt
+exit /b %errorlevel%
+
 :ensure_ollama
+where ollama >nul 2>&1
+if errorlevel 1 (
+  echo ERRO: Ollama nao encontrado. Instale o Ollama e tente novamente.
+  exit /b 1
+)
 ollama list >nul 2>&1
 if %errorlevel%==0 (
   echo Ollama ja esta rodando e respondendo na porta 11434.
