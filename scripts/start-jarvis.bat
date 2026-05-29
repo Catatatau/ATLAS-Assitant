@@ -45,7 +45,7 @@ if errorlevel 1 (
 
 echo [4/5] Iniciando Agente Python...
 call :free_port 5001 "Jarvis Agent antigo"
-start "Jarvis Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" main.py"
+start "Jarvis Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" ""%AGENT_DIR%\main.py"""
 timeout /t 2 /nobreak >nul
 
 echo [5/5] Iniciando OpenClaw Gateway...

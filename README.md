@@ -92,6 +92,29 @@ O Atlas possui suporte nativo à injeção de comandos rápidos via `custom_comm
 
 ---
 
+## Troubleshooting: Python da .venv
+
+Se aparecer `SyntaxError: Non-UTF-8 code starting with '\x90'` apontando para
+`python-agent\.venv\Scripts\python.exe`, o executavel do Python foi passado como
+se fosse um arquivo `.py`.
+
+Use o executavel direto:
+
+```bat
+.\python-agent\.venv\Scripts\python.exe .\python-agent\main.py
+```
+
+Nao use:
+
+```bat
+python .\python-agent\.venv\Scripts\python.exe
+```
+
+Os scripts `scripts\start-jarvis.bat`, `scripts\start-tudo.bat` e
+`scripts\treinar-jarvis.bat` ja chamam o `python.exe` da `.venv` diretamente.
+
+---
+
 <div align="center">
   <b>Construído com extrema dedicação e foco em Performance e Segurança.</b><br>
   <i>ATLAS ASSISTANT — Always Listening, Always Solving.</i>

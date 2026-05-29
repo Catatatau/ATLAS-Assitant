@@ -187,7 +187,7 @@ echo [6/6] Iniciando ATLAS...
 start "ATLAS Brain" cmd /k "ollama run qwen3:8b"
 timeout /t 2 /nobreak >nul
 
-start "ATLAS Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" main.py"
+start "ATLAS Agent" cmd /k "cd /d ""%AGENT_DIR%"" && ""%PY_EXE%"" ""%AGENT_DIR%\main.py"""
 timeout /t 2 /nobreak >nul
 
 start "ATLAS Web UI" cmd /k "cd /d ""%WEB_DIR%"" && npm run dev"
